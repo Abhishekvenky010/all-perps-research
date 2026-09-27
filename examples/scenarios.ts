@@ -1,4 +1,5 @@
 import { simulateTrade } from "../src/simulation/TradeSimulator.js";
+import { PositionManager } from "../src/position/PositionManager.js";
 
 
 const config = {
@@ -6,8 +7,11 @@ const config = {
   maxCapacity: 100000,
   skewCoefficient: 0.2,
   capacityCoefficient: 0.05,
+  maxLeverage: 20,
 };
 
+
+const positionManager = new PositionManager();
 
 function runScenario(
   name: string,
@@ -29,6 +33,10 @@ function runScenario(
       size,
       10,
       config,
+      "trader",
+      1000,
+      positionManager,
+      
     );
 
 

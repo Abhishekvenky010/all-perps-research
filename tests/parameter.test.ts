@@ -34,6 +34,7 @@ describe("Skew coefficient analysis", () => {
         maxCapacity: 100000,
         skewCoefficient: k,
         capacityCoefficient: 0.05,
+        maxLeverage: 10,
       };
 
 
@@ -44,7 +45,9 @@ describe("Skew coefficient analysis", () => {
         10,
         config,
           "Alice",
-  positionManager,
+          1000,
+         positionManager,
+  
       );
 
 

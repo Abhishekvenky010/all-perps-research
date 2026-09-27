@@ -13,6 +13,7 @@ describe("Pricing curve comparison", () => {
     maxCapacity: 100000,
     skewCoefficient: 0.2,
     capacityCoefficient: 0.05,
+    maxLeverage: 10,
   };
 
 

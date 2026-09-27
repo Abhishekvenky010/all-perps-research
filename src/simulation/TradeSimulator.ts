@@ -1,22 +1,36 @@
 import type { MarketState } from "../market/MarketState.js";
+
 import type { Side } from "../amm/Pricing.js";
 
 import { getExecutionPrice } from "../amm/Pricing.js";
+
 import { canIncreaseExposure } from "../amm/Capacity.js";
 
 import type { MarketConfig } from "../config/MarketConfig.js";
+
 import type { Position } from "../position/Position.js";
+
 import { generatePositionId } from "../position/PositionId.js";
-import { PositionManager } from "../position/PositionManager.js";
+
+import type { PositionManager } from "../position/PositionManager.js";
+
+import { isLeverageAllowed } from "../risk/Leverage.js";
 
 
 export interface TradeSimulationResult {
+
   averagePrice: number;
+
   totalCost: number;
+
   finalState: MarketState;
+
   priceHistory: number[];
-  position : Position;
+
+  position: Position;
+
 }
+
 
 
 function applyExposure(
@@ -34,38 +48,115 @@ function applyExposure(
     state.shortOpenInterest += size;
 
   }
+
 }
 
 
+
 export function simulateTrade(
+
   state: MarketState,
+
   side: Side,
+
   size: number,
+
   steps: number,
+
   config: MarketConfig,
+
   trader: string,
+
+  margin: number,
+
   positionManager: PositionManager,
+
 ): TradeSimulationResult {
 
 
-  const stepSize = size / steps;
+  /*
+    Check leverage before execution
+
+    Example:
+
+    size = 10000
+    margin = 1000
+
+    leverage = 10x
+
+  */
+
+  const tempPosition = {
+
+    id: "temp",
+
+    trader,
+
+    market: state.symbol,
+
+    side,
+
+    size,
+
+    entryPrice: state.indexPrice,
+
+    margin,
+
+  };
+
+
+  if (
+
+    !isLeverageAllowed(
+
+      tempPosition,
+
+      config.maxLeverage,
+
+    )
+
+  ) {
+
+    throw new Error(
+      "MAX_LEVERAGE_EXCEEDED",
+    );
+
+  }
+
+
+
+  const stepSize =
+    size / steps;
+
 
   let totalCost = 0;
+
   let totalSize = 0;
+
 
   const prices: number[] = [];
 
 
-  for (let i = 0; i < steps; i++) {
+
+  for (
+    let i = 0;i < steps;i++
+  ) {
 
 
-    // Check whether trade exceeds market capacity
+    /*
+      Capacity check
+    */
+
     if (
+
       !canIncreaseExposure(
+
         state,
         config,
         stepSize,
+
       )
+
     ) {
 
       throw new Error(
@@ -75,62 +166,90 @@ export function simulateTrade(
     }
 
 
-    // Calculate execution price
+
+    /*
+      Get AMM execution price
+    */
+
     const executionPrice =
+
       getExecutionPrice(
+
         state,
+
         config,
+
         side,
+
       );
 
 
-    // Accumulate trade cost
-    totalCost += executionPrice * stepSize;
+
+    totalCost +=
+      executionPrice * stepSize;
+
 
     totalSize += stepSize;
 
 
-    // Store price movement for analysis
-    prices.push(executionPrice);
+    prices.push(
+      executionPrice,
+    );
 
 
-    // Update market exposure
+
+    /*
+      Update market exposure
+    */
+
     applyExposure(
+
       state,
+
       side,
+
       stepSize,
+
     );
 
   }
-  
-  const averagePrice = totalCost / totalSize;
 
-  const position = {
 
-  id: generatePositionId(),
 
-  trader,
+  const averagePrice =
+    totalCost / totalSize;
 
-  market: state.symbol,
 
-  side,
 
-  size: totalSize,
+  const position: Position = {
 
-  entryPrice: averagePrice,
+    id: generatePositionId(),
 
-  margin: totalCost * 0.1,
+    trader,
 
-};
+    market: state.symbol,
 
-positionManager.openPosition(
-  position,
-);
+    side,
+
+    size: totalSize,
+
+    entryPrice: averagePrice,
+
+    margin,
+
+  };
+
+
+
+  positionManager.openPosition(
+    position,
+  );
+
+
 
   return {
 
-    averagePrice:
-      totalCost / totalSize,
+    averagePrice,
 
     totalCost,
 
@@ -140,6 +259,6 @@ positionManager.openPosition(
 
     position,
 
-
   };
+
 }

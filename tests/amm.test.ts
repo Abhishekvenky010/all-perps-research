@@ -11,6 +11,7 @@ describe("All Perps AMM Prototype", () => {
     maxCapacity: 100000,
     skewCoefficient: 0.2,
     capacityCoefficient: 0.05,
+    maxLeverage: 10,
   };
 
 
@@ -32,7 +33,9 @@ describe("All Perps AMM Prototype", () => {
       10,
       config,
       "Alice",
+      1000,
       positionManager,
+      
     );
 
 
@@ -64,8 +67,10 @@ describe("All Perps AMM Prototype", () => {
       10000,
       10,
       config,
-        "Alice",
-  positionManager,
+      "Alice",
+      1000,
+      positionManager,
+      
     );
 
 

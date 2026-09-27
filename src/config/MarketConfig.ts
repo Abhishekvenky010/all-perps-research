@@ -8,4 +8,6 @@ export interface MarketConfig {
 
   capacityCoefficient: number;
 
+  maxLeverage: number;
+
 }
