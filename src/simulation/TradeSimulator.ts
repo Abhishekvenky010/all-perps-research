@@ -5,6 +5,9 @@ import { getExecutionPrice } from "../amm/Pricing.js";
 import { canIncreaseExposure } from "../amm/Capacity.js";
 
 import type { MarketConfig } from "../config/MarketConfig.js";
+import type { Position } from "../position/Position.js";
+import { generatePositionId } from "../position/PositionId.js";
+import { PositionManager } from "../position/PositionManager.js";
 
 
 export interface TradeSimulationResult {
@@ -12,6 +15,7 @@ export interface TradeSimulationResult {
   totalCost: number;
   finalState: MarketState;
   priceHistory: number[];
+  position : Position;
 }
 
 
@@ -39,6 +43,8 @@ export function simulateTrade(
   size: number,
   steps: number,
   config: MarketConfig,
+  trader: string,
+  positionManager: PositionManager,
 ): TradeSimulationResult {
 
 
@@ -96,7 +102,30 @@ export function simulateTrade(
     );
 
   }
+  
+  const averagePrice = totalCost / totalSize;
 
+  const position = {
+
+  id: generatePositionId(),
+
+  trader,
+
+  market: state.symbol,
+
+  side,
+
+  size: totalSize,
+
+  entryPrice: averagePrice,
+
+  margin: totalCost * 0.1,
+
+};
+
+positionManager.openPosition(
+  position,
+);
 
   return {
 
@@ -108,6 +137,9 @@ export function simulateTrade(
     finalState: state,
 
     priceHistory: prices,
+
+    position,
+
 
   };
 }

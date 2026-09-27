@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
 
 import { simulateTrade } from "../src/simulation/TradeSimulator.js";
-
-
+import { PositionManager } from "../src/position/PositionManager.js";
+const positionManager = new PositionManager();
 describe("All Perps AMM Prototype", () => {
 
 
@@ -31,6 +31,8 @@ describe("All Perps AMM Prototype", () => {
       10000,
       10,
       config,
+      "Alice",
+      positionManager,
     );
 
 
@@ -62,6 +64,8 @@ describe("All Perps AMM Prototype", () => {
       10000,
       10,
       config,
+        "Alice",
+  positionManager,
     );
 
 

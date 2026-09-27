@@ -1,7 +1,8 @@
 import { describe, it } from "vitest";
 
 import { simulateTrade } from "../src/simulation/TradeSimulator.js";
-
+import { PositionManager } from "../src/position/PositionManager.js";
+const positionManager = new PositionManager();
 
 describe("Skew coefficient analysis", () => {
 
@@ -42,6 +43,8 @@ describe("Skew coefficient analysis", () => {
         10000,
         10,
         config,
+          "Alice",
+  positionManager,
       );
 
 
