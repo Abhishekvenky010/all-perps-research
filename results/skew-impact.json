@@ -1,0 +1,54 @@
+{
+  "long": [
+    {
+      "exposure": 0,
+      "impact": 0
+    },
+    {
+      "exposure": 10000,
+      "impact": 2.56
+    },
+    {
+      "exposure": 20000,
+      "impact": 5.25
+    },
+    {
+      "exposure": 50000,
+      "impact": 15
+    },
+    {
+      "exposure": 80000,
+      "impact": 36
+    },
+    {
+      "exposure": 90000,
+      "impact": 63
+    }
+  ],
+  "short": [
+    {
+      "exposure": 0,
+      "impact": 0
+    },
+    {
+      "exposure": 10000,
+      "impact": 2.56
+    },
+    {
+      "exposure": 20000,
+      "impact": 5.25
+    },
+    {
+      "exposure": 50000,
+      "impact": 15
+    },
+    {
+      "exposure": 80000,
+      "impact": 36
+    },
+    {
+      "exposure": 90000,
+      "impact": 63
+    }
+  ]
+}

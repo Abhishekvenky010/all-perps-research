@@ -2,6 +2,8 @@ import {
   getExecutionPrice,
 } from "../src/amm/Pricing.js";
 
+import fs from "fs";
+
 
 const values = [
   0,
@@ -11,6 +13,12 @@ const values = [
   80000,
   90000,
 ];
+
+
+const results: { long: { exposure: number; impact: number }[]; short: { exposure: number; impact: number }[] } = {
+  long: [],
+  short: [],
+};
 
 
 const config = {
@@ -23,6 +31,7 @@ const config = {
 
 
 console.log("LONG IMPACT");
+
 
 for (const longOI of values) {
 
@@ -54,10 +63,16 @@ for (const longOI of values) {
       / state.indexPrice) * 100;
 
 
-  console.log({
-    longOI,
-    impact: `${impact.toFixed(2)}%`,
-  });
+  const data = {
+    exposure: longOI,
+    impact: Number(impact.toFixed(2)),
+  };
+
+
+  results.long.push(data);
+
+
+  console.log(data);
 
 }
 
@@ -92,16 +107,31 @@ for (const shortOI of values) {
 
 
   const impact =
-      (Math.abs(
-      executionPrice - state.indexPrice
-   )
-   /
-   state.indexPrice) * 100;
+    (
+      Math.abs(
+        executionPrice - state.indexPrice
+      )
+      /
+      state.indexPrice
+    ) * 100;
 
 
-  console.log({
-    shortOI,
-    impact: `${impact.toFixed(2)}%`,
-  });
+  const data = {
+    exposure: shortOI,
+    impact: Number(impact.toFixed(2)),
+  };
+
+
+  results.short.push(data);
+
+
+  console.log(data);
 
 }
+
+
+
+fs.writeFileSync(
+  "results/skew-impact.json",
+  JSON.stringify(results, null, 2),
+);

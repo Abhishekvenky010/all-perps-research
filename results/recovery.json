@@ -1,0 +1,32 @@
+[
+  {
+    "shortOI": 0,
+    "longOI": 50000,
+    "executionPrice": 100,
+    "skew": 50000
+  },
+  {
+    "shortAdded": 10000,
+    "longOI": 50000,
+    "shortOI": 10000,
+    "executionPrice": 90,
+    "skewBefore": 50000,
+    "skewAfter": 40000
+  },
+  {
+    "shortAdded": 10000,
+    "longOI": 50000,
+    "shortOI": 20000,
+    "executionPrice": 92,
+    "skewBefore": 40000,
+    "skewAfter": 30000
+  },
+  {
+    "shortAdded": 10000,
+    "longOI": 50000,
+    "shortOI": 30000,
+    "executionPrice": 94,
+    "skewBefore": 30000,
+    "skewAfter": 20000
+  }
+]

@@ -1,194 +1,272 @@
-1. Problem Statement
+
+# All Perps-Inspired AMM Research Prototype
+
+## 1. Problem Statement
 
 Traditional perpetual exchanges need to handle:
 
-- directional imbalance
-- market capacity
-- trader risk
-- liquidation
+- Directional imbalance
+- Market capacity
+- Trader risk
+- Liquidation
 
-A market with excessive LONG or SHORT demand can expose the protocol to large inventory risk.
+A market with excessive LONG or SHORT demand can expose the protocol to inventory imbalances and risk.
 
-2. Prototype Objective
+This project explores how an AMM-inspired pricing model can respond to directional imbalance and capacity utilization.
 
-Build a prototype AMM that adjusts pricing based on:
+## 2. Prototype Objective
+
+Build an off-chain AMM simulation that adjusts pricing based on:
 
 1. Market skew
 2. Capacity utilization
 
-and study whether these mechanisms:
+The objective is to study whether these mechanisms can:
 
-- discourage excessive imbalance
-- maintain bounded exposure
-- allow market recovery
+- Increase execution costs as directional imbalance grows.
+- Enforce a configured market capacity boundary.
+- Allow opposite-side trading to reduce net skew.
+- Explore how pricing parameters affect market behavior.
 
-3. Architecture
+## 3. Architecture
 
+```text
                  Trade Request
                        |
                        v
-
-              Trade Simulator
-
+                Trade Simulator
                        |
         +--------------+--------------+
         |                             |
         v                             v
-
-   AMM Pricing                  Risk Engine
-
-        |                             |
+    AMM Pricing                  Risk Engine
         |                             |
         v                             v
-
- Market State                Margin / Liquidation
-
+   Market State              Margin / Liquidation
                        |
                        v
+                Position Manager
+```
 
-              Position Manager
+The prototype separates pricing, market state, trade simulation, and risk management into distinct components.
 
-4. Pricing Model
+## 4. Pricing Model
 
-Skew Impact
+### 4.1 Skew Impact
 
-Purpose:
+**Purpose:** Increase price impact as directional imbalance grows.
 
-Control directional imbalance
+The prototype calculates net skew as:
 
-Formula concept:
+```text
+skew = longOpenInterest - shortOpenInterest
+```
 
-impact = coefficient × |skew|
+The skew ratio is:
 
-Behaviour:
+```text
+skewRatio = skew / maxCapacity
+```
 
-More imbalance
-        |
-        v
-Higher execution cost
-Capacity Impact
+The skew impact is:
 
-Purpose:
+```text
+skewImpact = skewCoefficient * abs(skewRatio)
+```
 
-Control utilization near maximum capacity
+**Expected behavior:**
 
-Formula concept:
+Greater absolute directional imbalance produces greater skew impact, all else being equal.
 
-impact = coefficient × usage/(1-usage)
+### 4.2 Capacity Impact
 
-Behaviour:
+**Purpose:** Increase price impact as total open interest approaches the configured capacity limit.
 
-Closer to capacity
-        |
-        v
-Nonlinear price increase
+Capacity utilization is calculated as:
 
-5. Experiments
+```text
+totalOpenInterest = longOpenInterest + shortOpenInterest
 
-Experiment 1: Skew Impact
+usage = totalOpenInterest / maxCapacity
+```
 
-Question:
+The capacity impact is:
 
-Does imbalance increase trading cost?
+```text
+capacityImpact = capacityCoefficient * (usage / (1 - usage))
+```
 
-Result:
+The impact increases nonlinearly as utilization approaches 100%.
 
-Exposure	Impact
-0	0%
-10k	2.56%
-20k	5.25%
-50k	15%
-80k	36%
-90k	63%
+The implementation throws a `CAPACITY_REACHED` error when utilization is at or above 1.
 
-Conclusion:
+### 4.3 Execution Price
 
-Increasing directional imbalance causes increasing execution cost.
-Experiment 2: Capacity Stress Test
+The prototype combines the two impacts:
 
-Question:
+```text
+totalImpact = skewImpact + capacityImpact
+```
 
-Does the AMM prevent unlimited exposure?
+The execution price is calculated as:
 
-Result:
+```text
+LONG price = indexPrice * (1 + totalImpact)
 
-100,000 exposure accepted
+SHORT price = indexPrice * (1 - totalImpact)
+```
 
-110,000 exposure rejected
+These formulas describe the experimental pricing rules implemented in the off-chain simulation. They are not presented as the exact formulas of the All Perps paper.
 
-Conclusion:
+## 5. Experiments
 
-The capacity boundary prevents unlimited growth.
-Experiment 3: Recovery
+### Experiment 1: Skew Impact
 
-Question:
+**Question:** Does increasing directional imbalance increase trading cost?
 
-Can opposite trading reduce imbalance?
+**Results:**
 
-Result:
+| Exposure | Reported Impact |
+|---:|---:|
+| 0 | 0% |
+| 10k | 2.56% |
+| 20k | 5.25% |
+| 50k | 15% |
+| 80k | 36% |
+| 90k | 63% |
 
-Initial:
+![Skew Impact](../results/graphs/skew-impact.png)
 
-LONG = 50000
-SHORT = 0
+**Conclusion:**
 
-After SHORT traders:
+Under the tested configuration, reported impact increases as directional exposure grows.
 
-LONG = 50000
-SHORT = 30000
+The result illustrates how the experimental skew-based pricing mechanism responds to increasing imbalance.
 
-Execution price:
+### Experiment 2: Capacity Stress Test
 
-90 → 92 → 94
+**Question:** Does the prototype enforce a configured capacity boundary?
 
-Conclusion:
+**Results:**
 
-Reducing skew moves price closer to oracle.
-Experiment 4: Parameter Analysis
-Skew Coefficient
-Coefficient	Impact
-0.05	4%
-0.2	16%
-0.5	40%
-1	80%
+| Exposure | Result |
+|---:|---|
+| 100,000 | Accepted |
+| 110,000 | Rejected |
 
-Finding:
+![Capacity Stress](../results/graphs/capacity-stress.png)
 
-Higher skew coefficient creates stronger resistance against imbalance.
-Capacity Coefficient
-Coefficient	Impact
-0.01	4%
-0.05	20%
-0.1	40%
-0.2	80%
+**Conclusion:**
 
-Finding:
+The prototype accepts exposure up to the tested capacity boundary and rejects the next tested trade.
 
-Higher capacity coefficient creates stronger resistance near utilization limits.
-6. Current Limitations
+This demonstrates the configured capacity enforcement in the tested scenario. It does not establish a general guarantee of protocol solvency.
 
-Important to mention:
+### Experiment 3: Market Recovery
 
-Current prototype is an off-chain simulation.
+**Question:** Can opposite-side trading reduce directional imbalance?
 
-It does not yet model:
+**Initial state:**
 
-- oracle manipulation
-- funding rates
-- LP accounting
-- insurance fund
-- liquidation incentives
-- real blockchain execution
-7. Future Work
+- LONG OI = 50,000
+- SHORT OI = 0
+- Index price = 100
 
-Possible extensions:
+**Configuration:**
 
-1. Funding rate mechanism
+- Maximum capacity = 100,000
+- Skew coefficient = 0.2
+- Capacity coefficient = 0
 
-2. LP profit/loss simulation
+**Results:**
 
-3. More advanced AMM curves
+| SHORT Trade | Skew Before | Skew After | Execution Price |
+|---:|---:|---:|---:|
+| 10,000 | 50,000 | 40,000 | 90 |
+| 10,000 | 40,000 | 30,000 | 92 |
+| 10,000 | 30,000 | 20,000 | 94 |
 
-4. Compare with existing perpetual protocols
+![Market Recovery](../results/graphs/recovery.png)
 
-5. On-chain implementation
+**Conclusion:**
+
+Opposite-side trading reduces net skew from 50,000 to 20,000.
+
+Under the tested configuration, the SHORT execution price moves from 90 to 94, closer to the index price of 100.
+
+**Limitation:**
+
+This is a simplified off-chain simulation. The experiment demonstrates reduced net skew and a change in the modeled execution price, not guaranteed market recovery or solvency.
+
+### Experiment 4: Parameter Analysis
+
+#### 4.1 Skew Coefficient
+
+**Question:** How does the skew coefficient affect reported price impact?
+
+| Skew Coefficient | Reported Impact |
+|---:|---:|
+| 0.05 | 4% |
+| 0.2 | 16% |
+| 0.5 | 40% |
+| 1.0 | 80% |
+
+**Finding:**
+
+Under the tested conditions, increasing the skew coefficient increases the reported impact.
+
+This indicates that the coefficient controls the strength of the skew-based pricing response.
+
+#### 4.2 Capacity Coefficient
+
+**Question:** How does the capacity coefficient affect reported price impact?
+
+| Capacity Coefficient | Reported Impact |
+|---:|---:|
+| 0.01 | 4% |
+| 0.05 | 20% |
+| 0.1 | 40% |
+| 0.2 | 80% |
+
+**Finding:**
+
+Under the tested conditions, increasing the capacity coefficient increases the reported impact near the utilization limit.
+
+This indicates that the coefficient controls the strength of the capacity-based pricing response.
+
+## 6. Current Limitations
+
+The current prototype is an off-chain simulation inspired by the All Perps paper.
+
+It does not yet implement or fully model:
+
+- On-chain AMM TWAP integration.
+- Oracle manipulation and oracle security.
+- Funding rate mechanisms.
+- LP accounting and profit/loss.
+- Insurance fund mechanisms.
+- Liquidation incentives.
+- Real blockchain execution.
+- A complete protocol-level solvency model.
+
+The pricing formulas, coefficients, and experimental configurations are implementation choices. The prototype should not be treated as a faithful reproduction of the complete All Perps design.
+
+## 7. Future Work
+
+Possible extensions include:
+
+1. Implement a funding rate mechanism.
+2. Add LP profit/loss accounting and simulation.
+3. Explore alternative AMM pricing curves.
+4. Compare the prototype's mechanisms with existing perpetual protocols.
+5. Integrate an oracle TWAP mechanism.
+6. Develop an on-chain implementation.
+7. Expand risk and solvency testing across different market scenarios.
+
+## 8. Summary
+
+This project explores an AMM-inspired perpetual market simulation using skew-based and capacity-based pricing.
+
+The experiments investigate how directional imbalance, capacity utilization, and parameter changes affect modeled execution prices and exposure.
+
+The results provide a foundation for further research into pricing behavior, risk management, and market capacity in perpetual trading systems.

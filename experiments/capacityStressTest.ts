@@ -6,6 +6,8 @@ import {
   canIncreaseExposure,
 } from "../src/amm/Capacity.js";
 
+import fs from "fs";
+
 
 const config = {
 
@@ -35,7 +37,6 @@ const state = {
 };
 
 
-
 const trades = [
   10000,
   10000,
@@ -49,6 +50,9 @@ const trades = [
   10000,
   10000,
 ];
+
+
+const results = [];
 
 
 for (const size of trades) {
@@ -71,6 +75,20 @@ for (const size of trades) {
       "REJECTED: CAPACITY LIMIT"
     );
 
+
+    results.push({
+
+      requestedIncrease: size,
+
+      longOI:
+        state.longOpenInterest,
+
+      status:
+        "REJECTED"
+
+    });
+
+
     break;
 
   }
@@ -87,15 +105,29 @@ for (const size of trades) {
   state.longOpenInterest += size;
 
 
-  console.log({
-
-    executionPrice:
-      price,
+  const data = {
 
     longOI:
       state.longOpenInterest,
 
-  });
+    executionPrice:
+      Number(price.toFixed(2)),
 
+    status:
+      "ACCEPTED"
+
+  };
+
+
+  results.push(data);
+
+
+  console.log(data);
 
 }
+
+
+fs.writeFileSync(
+  "results/capacity-stress.json",
+  JSON.stringify(results, null, 2),
+);
