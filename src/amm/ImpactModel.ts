@@ -2,7 +2,7 @@ export function getSkewImpact(
   skewRatio: number,
   coefficient: number,
 ): number {
-  return coefficient * skewRatio;
+  return coefficient * Math.abs(skewRatio);
 }
 
 
