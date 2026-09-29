@@ -1,32 +1,110 @@
 [
   {
-    "shortOI": 0,
-    "longOI": 50000,
-    "executionPrice": 100,
-    "skew": 50000
-  },
-  {
-    "shortAdded": 10000,
+    "side": "SHORT",
+    "size": 10000,
     "longOI": 50000,
     "shortOI": 10000,
-    "executionPrice": 90,
+    "executionPrice": 91.67,
     "skewBefore": 50000,
     "skewAfter": 40000
   },
   {
-    "shortAdded": 10000,
+    "side": "SHORT",
+    "size": 10000,
     "longOI": 50000,
     "shortOI": 20000,
-    "executionPrice": 92,
+    "executionPrice": 93.33,
     "skewBefore": 40000,
     "skewAfter": 30000
   },
   {
-    "shortAdded": 10000,
+    "side": "SHORT",
+    "size": 10000,
     "longOI": 50000,
     "shortOI": 30000,
-    "executionPrice": 94,
+    "executionPrice": 95,
     "skewBefore": 30000,
     "skewAfter": 20000
+  },
+  {
+    "side": "SHORT",
+    "size": 10000,
+    "longOI": 50000,
+    "shortOI": 40000,
+    "executionPrice": 96.67,
+    "skewBefore": 20000,
+    "skewAfter": 10000
+  },
+  {
+    "side": "SHORT",
+    "size": 10000,
+    "longOI": 50000,
+    "shortOI": 50000,
+    "executionPrice": 98.33,
+    "skewBefore": 10000,
+    "skewAfter": 0
+  },
+  {
+    "side": "SHORT",
+    "size": 10000,
+    "longOI": 50000,
+    "shortOI": 60000,
+    "executionPrice": 100,
+    "skewBefore": 0,
+    "skewAfter": -10000
+  },
+  {
+    "side": "LONG",
+    "size": 10000,
+    "longOI": 10000,
+    "shortOI": 50000,
+    "executionPrice": 91.67,
+    "skewBefore": -50000,
+    "skewAfter": -40000
+  },
+  {
+    "side": "LONG",
+    "size": 10000,
+    "longOI": 20000,
+    "shortOI": 50000,
+    "executionPrice": 93.33,
+    "skewBefore": -40000,
+    "skewAfter": -30000
+  },
+  {
+    "side": "LONG",
+    "size": 10000,
+    "longOI": 30000,
+    "shortOI": 50000,
+    "executionPrice": 95,
+    "skewBefore": -30000,
+    "skewAfter": -20000
+  },
+  {
+    "side": "LONG",
+    "size": 10000,
+    "longOI": 40000,
+    "shortOI": 50000,
+    "executionPrice": 96.67,
+    "skewBefore": -20000,
+    "skewAfter": -10000
+  },
+  {
+    "side": "LONG",
+    "size": 10000,
+    "longOI": 50000,
+    "shortOI": 50000,
+    "executionPrice": 98.33,
+    "skewBefore": -10000,
+    "skewAfter": 0
+  },
+  {
+    "side": "LONG",
+    "size": 10000,
+    "longOI": 60000,
+    "shortOI": 50000,
+    "executionPrice": 100,
+    "skewBefore": 0,
+    "skewAfter": 10000
   }
 ]

@@ -26,6 +26,7 @@ describe("Skew coefficient analysis", () => {
         indexPrice: 100,
         longOpenInterest: 50000,
         shortOpenInterest: 10000,
+        ammTwapPrice: 100,
       };
 
 

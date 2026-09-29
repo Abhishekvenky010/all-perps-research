@@ -23,6 +23,7 @@ describe("All Perps AMM Prototype", () => {
       indexPrice: 100,
       longOpenInterest: 0,
       shortOpenInterest: 0,
+      ammTwapPrice: 100,
     };
 
 
@@ -58,6 +59,7 @@ describe("All Perps AMM Prototype", () => {
       indexPrice: 100,
       longOpenInterest: 60000,
       shortOpenInterest: 10000,
+      ammTwapPrice: 100,
     };
 
 

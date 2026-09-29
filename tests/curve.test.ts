@@ -47,6 +47,7 @@ describe("Pricing curve comparison", () => {
           item.longOpenInterest,
         shortOpenInterest:
           item.shortOpenInterest,
+          ammTwapPrice: 100,
       };
 
 
