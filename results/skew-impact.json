@@ -6,23 +6,23 @@
     },
     {
       "exposure": 10000,
-      "impact": 2.56
+      "impact": 2.57
     },
     {
       "exposure": 20000,
-      "impact": 5.25
+      "impact": 5.3
     },
     {
       "exposure": 50000,
-      "impact": 15
+      "impact": 15.5
     },
     {
       "exposure": 80000,
-      "impact": 36
+      "impact": 39.2
     },
     {
       "exposure": 90000,
-      "impact": 63
+      "impact": 71.1
     }
   ],
   "short": [
@@ -32,23 +32,23 @@
     },
     {
       "exposure": 10000,
-      "impact": 2.56
+      "impact": 2.54
     },
     {
       "exposure": 20000,
-      "impact": 5.25
+      "impact": 5.2
     },
     {
       "exposure": 50000,
-      "impact": 15
+      "impact": 14.5
     },
     {
       "exposure": 80000,
-      "impact": 36
+      "impact": 32.8
     },
     {
       "exposure": 90000,
-      "impact": 63
+      "impact": 54.9
     }
   ]
 }

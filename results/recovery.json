@@ -4,7 +4,7 @@
     "size": 10000,
     "longOI": 50000,
     "shortOI": 10000,
-    "executionPrice": 91.67,
+    "executionPrice": 108.33,
     "skewBefore": 50000,
     "skewAfter": 40000
   },
@@ -13,7 +13,7 @@
     "size": 10000,
     "longOI": 50000,
     "shortOI": 20000,
-    "executionPrice": 93.33,
+    "executionPrice": 106.67,
     "skewBefore": 40000,
     "skewAfter": 30000
   },
@@ -22,7 +22,7 @@
     "size": 10000,
     "longOI": 50000,
     "shortOI": 30000,
-    "executionPrice": 95,
+    "executionPrice": 105,
     "skewBefore": 30000,
     "skewAfter": 20000
   },
@@ -31,7 +31,7 @@
     "size": 10000,
     "longOI": 50000,
     "shortOI": 40000,
-    "executionPrice": 96.67,
+    "executionPrice": 103.33,
     "skewBefore": 20000,
     "skewAfter": 10000
   },
@@ -40,7 +40,7 @@
     "size": 10000,
     "longOI": 50000,
     "shortOI": 50000,
-    "executionPrice": 98.33,
+    "executionPrice": 101.67,
     "skewBefore": 10000,
     "skewAfter": 0
   },

@@ -37,6 +37,8 @@ describe("Bounded Capacity Impact", () => {
       shortOpenInterest: 20_000,
     };
 
+    // No skew, so the fair value is the TWAP and the bounded
+    // spread sits above it.
     expect(
       getBoundedExecutionPrice(state, config, "LONG"),
     ).toBeCloseTo(105.04);
@@ -53,6 +55,6 @@ describe("Bounded Capacity Impact", () => {
 
     expect(
       getBoundedExecutionPrice(state, config, "LONG"),
-    ).toBeCloseTo(117.16);
+    ).toBeCloseTo(117.8064, 4);
   });
 });

@@ -10,4 +10,7 @@ export interface MarketConfig {
 
   maxLeverage: number;
 
+  // Optional: defaults to 0.05 when omitted.
+  maintenanceMargin?: number;
+
 }

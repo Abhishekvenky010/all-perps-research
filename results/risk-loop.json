@@ -1,0 +1,38 @@
+[
+  {
+    "scenario": "CRASH INTO LONG CROWD",
+    "markPrice": 104.4,
+    "liquidated": 1,
+    "releasedOpenInterest": 90000,
+    "capacityBefore": 0,
+    "capacityAfter": 90000,
+    "recoveredCapacity": 90000,
+    "capacityUsageBefore": 1,
+    "capacityUsageAfter": 0.1,
+    "markPriceAfter": 88.2
+  },
+  {
+    "scenario": "HEALTHY BOOK (no liquidations)",
+    "markPrice": 100,
+    "liquidated": 0,
+    "releasedOpenInterest": 0,
+    "capacityBefore": 0,
+    "capacityAfter": 0,
+    "recoveredCapacity": 0,
+    "capacityUsageBefore": 1,
+    "capacityUsageAfter": 1,
+    "markPriceAfter": 100
+  },
+  {
+    "scenario": "SPIKE INTO SHORT CROWD",
+    "markPrice": 75.6,
+    "liquidated": 1,
+    "releasedOpenInterest": 10000,
+    "capacityBefore": 0,
+    "capacityAfter": 10000,
+    "recoveredCapacity": 10000,
+    "capacityUsageBefore": 1,
+    "capacityUsageAfter": 0.9,
+    "markPriceAfter": 73.8
+  }
+]

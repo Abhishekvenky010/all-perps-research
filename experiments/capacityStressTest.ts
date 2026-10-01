@@ -29,6 +29,7 @@ const state = {
   symbol: "BTC-PERP",
 
   indexPrice: 100,
+  ammTwapPrice: 100,
 
   longOpenInterest: 0,
 

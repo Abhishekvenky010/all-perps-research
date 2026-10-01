@@ -1,9 +1,9 @@
-
 import { simulateTrade } from "../src/simulation/TradeSimulator.js";
 import { PositionManager } from "../src/position/PositionManager.js";
 import type { MarketState } from "../src/market/MarketState.js";
 import { SimulatedPriceFeed } from "../src/oracle/SimulatedPriceFeed.js";
 import { recordPriceAndUpdateTwap } from "../src/oracle/PriceFeedService.js";
+import type { SimulationEnvironment } from "../src/simulation/SimulationEnvironment.js";
 
 const config = {
   symbol: "BTC-PERP",
@@ -18,8 +18,8 @@ const positionManager = new PositionManager();
 function createScenarioState(
   longOpenInterest: number,
   shortOpenInterest: number,
-): MarketState {
-  let state: MarketState = {
+): SimulationEnvironment {
+  let market: MarketState = {
     symbol: "BTC-PERP",
     indexPrice: 100,
     ammTwapPrice: 100,
@@ -27,19 +27,47 @@ function createScenarioState(
     shortOpenInterest,
   };
 
-  const feed = new SimulatedPriceFeed();
+  const priceFeed = new SimulatedPriceFeed();
 
-  state = recordPriceAndUpdateTwap(state, feed, 100, 0);
-  state = recordPriceAndUpdateTwap(state, feed, 102, 300);
-  state = recordPriceAndUpdateTwap(state, feed, 101, 600);
-  state = recordPriceAndUpdateTwap(state, feed, 103, 900);
+  market = recordPriceAndUpdateTwap(
+    market,
+    priceFeed,
+    100,
+    0,
+  );
 
-  return state;
+  market = recordPriceAndUpdateTwap(
+    market,
+    priceFeed,
+    102,
+    300,
+  );
+
+  market = recordPriceAndUpdateTwap(
+    market,
+    priceFeed,
+    101,
+    600,
+  );
+
+  market = recordPriceAndUpdateTwap(
+    market,
+    priceFeed,
+    103,
+    900,
+  );
+
+  return {
+    market,
+    config,
+    priceFeed,
+    timestamp: 900,
+  };
 }
 
 function runScenario(
   name: string,
-  state: MarketState,
+  environment: SimulationEnvironment,
   side: "LONG" | "SHORT",
   size: number,
 ) {
@@ -49,7 +77,7 @@ function runScenario(
 
   try {
     const result = simulateTrade(
-      state,
+      environment.market,
       side,
       size,
       10,

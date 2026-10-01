@@ -1,0 +1,76 @@
+{
+  "window": 900,
+  "baselinePrice": 100,
+  "manipulatedPrice": 1000,
+  "cases": [
+    {
+      "manipulationDuration": 0.4,
+      "normalDuration": 899.6,
+      "twap": 100.4,
+      "oracleTwap": 100.4,
+      "displacementPercent": 0.4
+    },
+    {
+      "manipulationDuration": 10,
+      "normalDuration": 890,
+      "twap": 110,
+      "oracleTwap": 110,
+      "displacementPercent": 10
+    },
+    {
+      "manipulationDuration": 60,
+      "normalDuration": 840,
+      "twap": 160,
+      "oracleTwap": 160,
+      "displacementPercent": 60
+    },
+    {
+      "manipulationDuration": 300,
+      "normalDuration": 600,
+      "twap": 400,
+      "oracleTwap": 400,
+      "displacementPercent": 300
+    },
+    {
+      "manipulationDuration": 900,
+      "normalDuration": 0,
+      "twap": 1000,
+      "oracleTwap": 1000,
+      "displacementPercent": 900
+    },
+    {
+      "thresholdTable": [
+        {
+          "targetDisplacementPercent": 1,
+          "requiredDuration": 1,
+          "windowSharePercent": 0.1111
+        },
+        {
+          "targetDisplacementPercent": 5,
+          "requiredDuration": 5,
+          "windowSharePercent": 0.5556
+        },
+        {
+          "targetDisplacementPercent": 10,
+          "requiredDuration": 10,
+          "windowSharePercent": 1.1111
+        },
+        {
+          "targetDisplacementPercent": 25,
+          "requiredDuration": 25,
+          "windowSharePercent": 2.7778
+        },
+        {
+          "targetDisplacementPercent": 50,
+          "requiredDuration": 50,
+          "windowSharePercent": 5.5556
+        },
+        {
+          "targetDisplacementPercent": 90,
+          "requiredDuration": 90,
+          "windowSharePercent": 10
+        }
+      ]
+    }
+  ]
+}

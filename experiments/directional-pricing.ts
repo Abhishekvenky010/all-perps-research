@@ -2,6 +2,14 @@
 import { getExecutionPrice } from "../src/amm/Pricing.js";
 import assert from "node:assert/strict";
 
+/*
+  capacityCoefficient is 0, so there is no spread and both
+  sides quote the skew-adjusted fair value directly.
+
+  Skew moves the fair value:
+    a long-crowded book is worth more
+    a short-crowded book is worth less
+*/
 const config = {
   symbol: "BTC-PERP",
   maxCapacity: 100000,
@@ -15,6 +23,7 @@ const scenarios = [
     name: "Balanced",
     longOpenInterest: 30000,
     shortOpenInterest: 30000,
+    // No skew: fair value is the TWAP.
     expectedLong: 100,
     expectedShort: 100,
   },
@@ -22,15 +31,17 @@ const scenarios = [
     name: "Long-heavy",
     longOpenInterest: 50000,
     shortOpenInterest: 10000,
+    // skewRatio 0.4 -> fair value 108 for both sides.
     expectedLong: 108,
-    expectedShort: 92,
+    expectedShort: 108,
   },
   {
     name: "Short-heavy",
     longOpenInterest: 10000,
     shortOpenInterest: 50000,
+    // skewRatio -0.4 -> fair value 92 for both sides.
     expectedLong: 92,
-    expectedShort: 108,
+    expectedShort: 92,
   },
 ];
 
@@ -58,11 +69,20 @@ for (const scenario of scenarios) {
     `${scenario.name}: unexpected SHORT price`,
   );
 
+  /*
+    With no capacity spread the two quotes are identical, so
+    the skew is what moves the market.
+  */
+  assert.equal(
+    Number((longPrice - shortPrice).toFixed(10)),
+    0,
+    `${scenario.name}: quotes should match without a capacity spread`,
+  );
+
   console.log({
     scenario: scenario.name,
     skew: state.longOpenInterest - state.shortOpenInterest,
-    longPrice: Number(longPrice.toFixed(2)),
-    shortPrice: Number(shortPrice.toFixed(2)),
+    fairValue: Number(longPrice.toFixed(2)),
   });
 }
 

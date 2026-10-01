@@ -3,6 +3,8 @@ import type { MarketConfig } from "../config/MarketConfig.js";
 import { getSkewRatio, getCapacityUsage } from "../market/MarketMath.js";
 import {
   getSkewImpact,
+  getFairValue,
+  getExecutionPriceFromImpact,
   getCapacityImpact,
 } from "./ImpactModel.js";
 import { getSkew } from "../market/MarketMath.js";
@@ -19,35 +21,30 @@ export function getExecutionPrice(
   const skewRatio = getSkewRatio(state, config);
   const capacityUsage = getCapacityUsage(state, config);
 
-  const skewImpact = getSkewImpact(
+  const executionPrice = getExecutionPriceFromImpact(
+    state.ammTwapPrice,
+    skewRatio,
+    config.skewCoefficient,
+    capacityUsage,
+    config.capacityCoefficient,
+    side,
+  );
+
+  const fairValue = getFairValue(
+    state.ammTwapPrice,
     skewRatio,
     config.skewCoefficient,
   );
-
-  const capacityImpact = getCapacityImpact(
-    capacityUsage,
-    config.capacityCoefficient,
-  );
-
-  const totalImpact = skewImpact + capacityImpact;
-  const basePrice = state.ammTwapPrice;
-
-  const executionPrice =
-    side === "LONG"
-      ? basePrice * (1 + totalImpact)
-      : basePrice * (1 - totalImpact);
 
   console.log("=== AMM Pricing Diagnostic ===");
   console.log({
     side,
     longOpenInterest: state.longOpenInterest,
     shortOpenInterest: state.shortOpenInterest,
-    basePrice,
+    basePrice: state.ammTwapPrice,
     skewRatio,
     capacityUsage,
-    skewImpact,
-    capacityImpact,
-    totalImpact,
+    fairValue,
     executionPrice,
   });
 
@@ -65,7 +62,8 @@ export function getBoundedExecutionPrice(
   const skewRatio = getSkewRatio(state, config);
   const capacityUsage = getCapacityUsage(state, config);
 
-  const skewImpact = getSkewImpact(
+  const fairValue = getFairValue(
+    state.ammTwapPrice,
     skewRatio,
     config.skewCoefficient,
   );
@@ -75,12 +73,13 @@ export function getBoundedExecutionPrice(
     0.10,
   );
 
-  const totalImpact = skewImpact + capacityImpact;
-  const basePrice = state.ammTwapPrice;
+  // Same shape as getExecutionPrice: skew sets the fair value,
+  // capacity widens a symmetric spread around it.
+  const basePrice = fairValue;
 
   return side === "LONG"
-    ? basePrice * (1 + totalImpact)
-    : basePrice * (1 - totalImpact);
+    ? basePrice * (1 + capacityImpact)
+    : basePrice * (1 - capacityImpact);
 }
 
 export function getConvexExecutionPrice(
@@ -105,6 +104,20 @@ export function getConvexExecutionPrice(
 
   return state.indexPrice * (1 - impact);
 }
+
+export function getCurrentAmmPrice(
+  state: MarketState,
+  config: MarketConfig,
+): number {
+  const skewRatio = getSkewRatio(state, config);
+
+  const skewImpact = getSkewImpact(
+    skewRatio,
+    config.skewCoefficient,
+  );
+
+  return state.ammTwapPrice * (1 + skewImpact);
+}
 export function getAverageExecutionPrice(
   state: MarketState,
   config: MarketConfig,
@@ -118,22 +131,20 @@ export function getAverageExecutionPrice(
 
   const capacityUsage = totalOI / config.maxCapacity;
 
-  const skewImpact = getSkewImpact(
+  const fairValue = getFairValue(
+    state.ammTwapPrice,
     skewRatio,
     config.skewCoefficient,
   );
 
-  const capacityImpact = getCapacityImpact(
-    capacityUsage,
-    config.capacityCoefficient,
-  );
-
-  const totalImpact =
-    (Math.abs(skewImpact) + capacityImpact) / 2;
-
-  const basePrice = state.ammTwapPrice;
+  // Halved spread, matching the original averaging intent.
+  const capacityImpact =
+    getCapacityImpact(
+      capacityUsage,
+      config.capacityCoefficient,
+    ) / 2;
 
   return side === "LONG"
-    ? basePrice * (1 + totalImpact)
-    : basePrice * (1 - totalImpact);
+    ? fairValue * (1 + capacityImpact)
+    : fairValue * (1 - capacityImpact);
 }

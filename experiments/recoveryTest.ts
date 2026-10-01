@@ -20,6 +20,7 @@ function runScenario(
   const state = {
     symbol: "BTC-PERP",
     indexPrice: 100,
+    ammTwapPrice: 100,
     longOpenInterest: longOI,
     shortOpenInterest: shortOI,
   };
@@ -29,6 +30,8 @@ function runScenario(
 
   const initialAbsSkew = Math.abs(initialSkew);
   const results = [];
+
+  let previousPrice = Infinity;
 
   console.log(`\n${scenario}`);
   console.log("INITIAL STATE", { ...state });
@@ -68,11 +71,28 @@ function runScenario(
       );
     }
 
-    // Price should approach the index price
-    assert.ok(
-      price <= state.indexPrice,
-      `${scenario}: recovery-side price should not exceed index`,
-    );
+    /*
+      Skew sets the fair value, so a recovery trade should pull
+      the price back toward the index: falling when the book is
+      long-heavy (fair value above the index) and rising when
+      it is short-heavy (fair value below).
+    */
+    if (i > 0 && i < 5) {
+      /*
+        Compare against the sign of the skew the price was
+        quoted on, not the post-trade skew, which has already
+        moved and may have crossed zero.
+      */
+      const movingTowardIndex =
+        skewBefore > 0
+          ? price <= previousPrice
+          : price >= previousPrice;
+
+      assert.ok(
+        movingTowardIndex,
+        `${scenario}: recovery-side price should move toward the index`,
+      );
+    }
 
     const data = {
       side,
@@ -86,6 +106,8 @@ function runScenario(
 
     results.push(data);
     console.log(data);
+
+    previousPrice = price;
   }
 
   const finalSkew =

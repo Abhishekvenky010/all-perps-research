@@ -6,47 +6,47 @@
   },
   {
     "longOI": 20000,
-    "executionPrice": 102.56,
+    "executionPrice": 102.57,
     "status": "ACCEPTED"
   },
   {
     "longOI": 30000,
-    "executionPrice": 105.25,
+    "executionPrice": 105.3,
     "status": "ACCEPTED"
   },
   {
     "longOI": 40000,
-    "executionPrice": 108.14,
+    "executionPrice": 108.27,
     "status": "ACCEPTED"
   },
   {
     "longOI": 50000,
-    "executionPrice": 111.33,
+    "executionPrice": 111.6,
     "status": "ACCEPTED"
   },
   {
     "longOI": 60000,
-    "executionPrice": 115,
+    "executionPrice": 115.5,
     "status": "ACCEPTED"
   },
   {
     "longOI": 70000,
-    "executionPrice": 119.5,
+    "executionPrice": 120.4,
     "status": "ACCEPTED"
   },
   {
     "longOI": 80000,
-    "executionPrice": 125.67,
+    "executionPrice": 127.3,
     "status": "ACCEPTED"
   },
   {
     "longOI": 90000,
-    "executionPrice": 136,
+    "executionPrice": 139.2,
     "status": "ACCEPTED"
   },
   {
     "longOI": 100000,
-    "executionPrice": 163,
+    "executionPrice": 171.1,
     "status": "ACCEPTED"
   },
   {

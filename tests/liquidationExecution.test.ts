@@ -24,6 +24,7 @@ describe("Liquidation Execution", () => {
       symbol: "BTC-PERP",
 
       indexPrice: 110,
+      ammTwapPrice: 110,
 
       longOpenInterest: 10000,
 
@@ -89,6 +90,7 @@ describe("Liquidation Execution", () => {
       symbol: "BTC-PERP",
 
       indexPrice: 80,
+      ammTwapPrice: 80,
 
       longOpenInterest: 10000,
 
@@ -157,6 +159,7 @@ describe("Liquidation Execution", () => {
       symbol: "BTC-PERP",
 
       indexPrice: 80,
+      ammTwapPrice: 80,
 
       longOpenInterest: 50000,
 

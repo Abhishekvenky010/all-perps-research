@@ -21,6 +21,7 @@ for (const longOI of longValues) {
     symbol: "BTC-PERP",
 
     indexPrice: 100,
+    ammTwapPrice: 100,
 
     longOpenInterest: longOI,
 

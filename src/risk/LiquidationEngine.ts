@@ -2,12 +2,12 @@ import type { Position } from "../position/Position.js";
 import type { MarketState } from "../market/MarketState.js";
 
 import {
-  calculateUnrealizedPnL,
-} from "./PnL.js";
+  markPosition,
+} from "./PositionMark.js";
 
 import {
-  isLiquidatable,
-} from "./Liquidation.js";
+  closePosition,
+} from "../position/ClosePosition.js";
 
 import type { PositionManager } from "../position/PositionManager.js";
 
@@ -17,6 +17,14 @@ export interface LiquidationResult {
   positionId: string;
 
   trader: string;
+
+  markPrice: number;
+
+  pnl: number;
+
+  marginRatio: number;
+
+  releasedOpenInterest: number;
 
   realizedPnL: number;
 
@@ -43,26 +51,15 @@ export function liquidatePosition(
 ): LiquidationResult {
 
 
-  const pnl = calculateUnrealizedPnL(
-    position,
-    currentPrice,
-  );
-
-
-  const equity =
-    position.margin + pnl;
-
-
-
-  const liquidatable =
-    isLiquidatable(
+  const mark =
+    markPosition(
       position,
-      pnl,
+      currentPrice,
       maintenanceMargin,
     );
 
 
-  if (!liquidatable) {
+  if (!mark.liquidatable) {
 
     throw new Error(
       "POSITION_HEALTHY",
@@ -73,29 +70,17 @@ export function liquidatePosition(
 
 
   /*
-    Remove market exposure
+    Release market exposure and remove the position.
+
+    closePosition is the single place where open interest
+    is decremented, so a liquidation recovers exactly the
+    same capacity as a voluntary close.
   */
 
-  if (position.side === "LONG") {
-
-    market.longOpenInterest -=
-      position.size;
-
-  } else {
-
-    market.shortOpenInterest -=
-      position.size;
-
-  }
-
-
-
-  /*
-    Remove position
-  */
-
-  positionManager.closePosition(
+  closePosition(
     position.id,
+    market,
+    positionManager,
   );
 
 
@@ -106,11 +91,19 @@ export function liquidatePosition(
 
     trader: position.trader,
 
-    realizedPnL: pnl,
+    markPrice: mark.markPrice,
+
+    pnl: mark.pnl,
+
+    marginRatio: mark.marginRatio,
+
+    releasedOpenInterest: position.size,
+
+    realizedPnL: mark.pnl,
 
     remainingMargin:
       Math.max(
-        equity,
+        mark.equity,
         0,
       ),
 

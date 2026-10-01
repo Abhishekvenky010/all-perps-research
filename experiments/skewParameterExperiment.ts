@@ -34,6 +34,7 @@ for (const coefficient of coefficients) {
     symbol: "BTC-PERP",
 
     indexPrice: 100,
+    ammTwapPrice: 100,
 
     longOpenInterest: 80000,
 
