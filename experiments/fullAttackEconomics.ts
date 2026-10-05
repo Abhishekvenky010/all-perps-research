@@ -1,425 +1,298 @@
-
-import { simulateTrade } from "../src/simulation/TradeSimulator.js";
-import { PositionManager } from "../src/position/PositionManager.js";
-import { calculateUnrealizedPnL } from "../src/risk/PnL.js";
-
-import type { MarketState } from "../src/market/MarketState.js";
-import type { MarketConfig } from "../src/config/MarketConfig.js";
-
 /*
  * ============================================================
- * PROTOTYPE ATTACK ECONOMICS
+ * FULL ATTACK ECONOMICS
  * ============================================================
  *
- * This experiment connects:
+ * Prints the sweep built in ./attackEconomicsModel.ts.
  *
- *   TWAP manipulation
- *        ↓
- *   real perp execution
- *        ↓
- *   actual attacker PnL
+ * The question:
  *
- * against:
+ *   Can an attacker push the AMM TWAP away from the honest
+ *   price, extract that gap in the perp, and come out ahead
+ *   once execution impact, their own self-flow, the cost of
+ *   sustaining the manipulation, and liquidation risk are all
+ *   priced in?
  *
- *   Euler-inspired AMM manipulation cost
+ * The economic condition under test:
  *
- * IMPORTANT:
+ *   cost of sustaining manipulation > profit from perp
  *
- * The All Perps source gives the security requirement:
+ * The model, the arithmetic TWAP inversion and the sweep live
+ * in ./attackEconomicsModel.ts so that
+ * tests/attackEconomics.test.ts can assert the invariant
+ * without reimplementing any of it.
  *
- *     attack cost > attacker profit
- *
- * It does NOT specify this constant-product liquidity model.
- *
- * The AMM manipulation-cost model is therefore an explicit
- * prototype assumption derived from the supplied Euler research.
+ * The invariants themselves are enforced in that test rather
+ * than here: assertions in a printing script are easy to skip
+ * and easy to delete, whereas a failing test is not.
  */
 
-/* ============================================================
- * CONFIGURATION
- * ========================================================== */
+import {
+  runAttackSweep,
+  runCapacityAttackSweep,
+  requiredSpotForTwap,
+  replayTwap,
+  INITIAL_SPOT_PRICE,
+  MAINTENANCE_MARGIN,
+  config,
+} from "./attackEconomicsModel.js";
 
-const INITIAL_SPOT_PRICE = 100;
+import type { AttackRow } from "./attackEconomicsModel.js";
 
-const TWAP_WINDOW_BLOCKS = 72;
-const MANIPULATED_BLOCKS = 72;
+const rows = runAttackSweep();
 
-const ATTACKER_SIZE = 50_000;
-const ATTACKER_MARGIN = 10_000;
-const TRADE_STEPS = 5;
+const reachable = rows.filter((row) => row.reachable);
 
-const BASE_LIQUIDITY = 50_000;
-
-const TARGET_TWAPS = [
-  90,
-  80,
-  70,
-  60,
-  50,
-  40,
-];
-
-const config: MarketConfig = {
-  symbol: "BTC-PERP",
-  maxCapacity: 100_000,
-  skewCoefficient: 0.2,
-  capacityCoefficient: 0.05,
-  maxLeverage: 10,
-};
-
-/* ============================================================
- * EULER-INSPIRED TWAP MODEL
- * ========================================================== */
-
-/**
- * Geometric TWAP:
- *
- * TWAP =
- *
- *   (p^(n-m) * q^m)^(1/n)
- *
- * Rearranged:
- *
- *   q =
- *   (TWAP^n / p^(n-m))^(1/m)
- */
-function requiredManipulatedSpot(
-  normalPrice: number,
-  targetTwap: number,
-  windowBlocks: number,
-  manipulatedBlocks: number,
-): number {
-  if (
-    normalPrice <= 0 ||
-    targetTwap <= 0 ||
-    windowBlocks <= 0 ||
-    manipulatedBlocks <= 0 ||
-    manipulatedBlocks > windowBlocks
-  ) {
-    throw new Error(
-      "Invalid TWAP parameters",
-    );
-  }
-
-  const unmanipulatedBlocks =
-    windowBlocks -
-    manipulatedBlocks;
-
-  return Math.pow(
-    Math.pow(
-      targetTwap,
-      windowBlocks,
-    ) /
-      Math.pow(
-        normalPrice,
-        unmanipulatedBlocks,
-      ),
-    1 / manipulatedBlocks,
-  );
+function count(
+  predicate: (row: AttackRow) => boolean,
+): string {
+  return `${reachable.filter(predicate).length} of ${reachable.length}`;
 }
 
-/**
- * Downward manipulation.
- *
- * Initial price:
- *
- *   p = quoteReserve / baseReserve
- *
- * For q < p:
- *
- *   Δbase =
- *   sqrt(baseReserve * quoteReserve / q)
- *   - baseReserve
- */
-function requiredBaseInput(
-  baseReserve: number,
-  quoteReserve: number,
-  targetPrice: number,
-): number {
-  if (
-    baseReserve <= 0 ||
-    quoteReserve <= 0 ||
-    targetPrice <= 0
-  ) {
-    throw new Error(
-      "Invalid AMM parameters",
-    );
-  }
+console.log("\n=== REACHABLE ATTACKS ===");
 
-  const currentPrice =
-    quoteReserve /
-    baseReserve;
-
-  if (targetPrice >= currentPrice) {
-    throw new Error(
-      "This experiment only models downward manipulation",
-    );
-  }
-
-  return (
-    Math.sqrt(
-      (baseReserve *
-        quoteReserve) /
-        targetPrice,
-    ) -
-    baseReserve
-  );
-}
-
-/**
- * Quote asset received when the attacker
- * deposits base asset.
- */
-function quoteReceived(
-  baseReserve: number,
-  quoteReserve: number,
-  baseInput: number,
-): number {
-  const invariant =
-    baseReserve *
-    quoteReserve;
-
-  const newQuoteReserve =
-    invariant /
-    (baseReserve + baseInput);
-
-  return (
-    quoteReserve -
-    newQuoteReserve
-  );
-}
-
-/**
- * Euler-inspired upper-limit slippage cost.
- *
- *   cost =
- *   Δbase * normalPrice
- *   - Δquote
- */
-function manipulationCostPerBlock(
-  baseInput: number,
-  quoteOutput: number,
-  normalPrice: number,
-): number {
-  const cost =
-    baseInput *
-      normalPrice -
-    quoteOutput;
-
-  if (cost < 0) {
-    throw new Error(
-      "Manipulation cost cannot be negative",
-    );
-  }
-
-  return cost;
-}
-
-function calculateAttackCost(
-  targetTwap: number,
-): {
-  manipulatedSpot: number;
-  costPerBlock: number;
-  totalAttackCost: number;
-} {
-  const manipulatedSpot =
-    requiredManipulatedSpot(
-      INITIAL_SPOT_PRICE,
-      targetTwap,
-      TWAP_WINDOW_BLOCKS,
-      MANIPULATED_BLOCKS,
-    );
-
-  const quoteReserve =
-    BASE_LIQUIDITY *
-    INITIAL_SPOT_PRICE;
-
-  const baseInput =
-    requiredBaseInput(
-      BASE_LIQUIDITY,
-      quoteReserve,
-      manipulatedSpot,
-    );
-
-  const quoteOutput =
-    quoteReceived(
-      BASE_LIQUIDITY,
-      quoteReserve,
-      baseInput,
-    );
-
-  const costPerBlock =
-    manipulationCostPerBlock(
-      baseInput,
-      quoteOutput,
-      INITIAL_SPOT_PRICE,
-    );
-
-  return {
-    manipulatedSpot,
-    costPerBlock,
-    totalAttackCost:
-      costPerBlock *
-      MANIPULATED_BLOCKS,
-  };
-}
-
-/* ============================================================
- * REAL PERP EXTRACTION
- * ========================================================== */
-
-function calculateActualExtraction(
-  manipulatedTwap: number,
-): {
-  averageEntryPrice: number;
-  totalCost: number;
-  pnlAtHonestPrice: number;
-  positionSize: number;
-  priceHistory: number[];
-} {
-  const market: MarketState = {
-    symbol: "BTC-PERP",
-    indexPrice:
-      INITIAL_SPOT_PRICE,
-
-    ammTwapPrice:
-      manipulatedTwap,
-
-    longOpenInterest: 0,
-    shortOpenInterest: 0,
-  };
-
-  const positionManager =
-    new PositionManager();
-
-  const trade =
-    simulateTrade(
-      market,
-      "LONG",
-      ATTACKER_SIZE,
-      TRADE_STEPS,
-      config,
-      "attacker",
-      ATTACKER_MARGIN,
-      positionManager,
-    );
-
-  /*
-   * The attacker eventually exits at the honest
-   * reference price of 100.
-   *
-   * closePosition() currently releases OI but
-   * does not settle PnL, so we explicitly measure
-   * PnL at the exit price here.
-   */
-  const pnl =
-    calculateUnrealizedPnL(
-      trade.position,
-      INITIAL_SPOT_PRICE,
-    );
-
-  return {
-    averageEntryPrice:
-      trade.averagePrice,
-
-    totalCost:
-      trade.totalCost,
-
-    pnlAtHonestPrice:
-      pnl,
-
-    positionSize:
-      trade.position.size,
-
-    priceHistory:
-      trade.priceHistory,
-  };
-}
-
-/* ============================================================
- * FULL ATTACK ECONOMICS SWEEP
- * ========================================================== */
-
-console.log(
-  "\n=== FULL ATTACK ECONOMICS SWEEP ===",
+console.table(
+  reachable.map((row) => ({
+    target: row.targetTwap,
+    duration: row.duration,
+    requiredSpot: Number(row.requiredSpot.toFixed(3)),
+    oracleTwap: Number(row.oracleTwap.toFixed(6)),
+    oracleErr: row.oracleError.toExponential(1),
+    selfFlowUsage:
+      row.selfFlowUsagePct === null
+        ? null
+        : Number(row.selfFlowUsagePct.toFixed(1)),
+    entry: Number(row.entryPrice.toFixed(3)),
+    exit: Number(row.exitPrice.toFixed(3)),
+    pnl: Number(row.roundTripPnl.toFixed(0)),
+    attackCost: Number(row.attackCost.toFixed(0)),
+    ratio:
+      Number.isFinite(row.costToProfitRatio)
+        ? Number(row.costToProfitRatio.toFixed(2))
+        : "n/a",
+    naivePnl: row.naivePnlPositive,
+    liqOnEntry: row.liquidatedOnEntry,
+    marginAtMark: Number(
+      row.marginRatioAtManipulatedMark.toFixed(3),
+    ),
+    realizable: row.realizable,
+  })),
 );
 
-const results =
-  TARGET_TWAPS.map(
-    (targetTwap) => {
-      const attack =
-        calculateAttackCost(
+console.log("\n=== UNREACHABLE TARGETS ===");
+
+console.table(
+  rows
+    .filter((row) => !row.reachable)
+    .map((row) => ({
+      target: row.targetTwap,
+      duration: row.duration,
+      requiredSpot: Number(row.requiredSpot.toFixed(2)),
+      note: row.note,
+    })),
+);
+
+console.log("\n=== SELF-FLOW FEASIBILITY ===");
+
+console.log(
+  "Reachable attacks whose required price move needs more " +
+    "open interest than the market has:",
+  count((row) => !row.selfFlowFeasible),
+);
+
+console.log("\n=== LIQUIDATION ===");
+
+console.log(
+  "Reachable attacks where the attacker is liquidated on the " +
+    "way back up:",
+  count((row) => row.liquidated),
+);
+
+console.log(
+  "Reachable attacks already liquidatable at the entry " +
+    "mark, before any recovery:",
+  count((row) => row.liquidatedOnEntry),
+);
+
+console.log(
+  "Reachable attacks showing a positive headline PnL:",
+  count((row) => row.naivePnlPositive),
+);
+
+/*
+ * The oracle check and the self-flow check are re-run here as
+ * a visible summary. Both are asserted in the test suite.
+ */
+
+console.log("\n=== ORACLE AND SELF-FLOW CHECKS ===");
+
+let oracleChecks = 0;
+let oracleFailures = 0;
+let selfFlowChecks = 0;
+let selfFlowFailures = 0;
+
+for (const duration of [
+  15, 30, 60, 120, 300, 600, 900,
+]) {
+  for (const targetTwap of [90, 80, 70, 60, 50, 40]) {
+    const requiredSpot =
+      requiredSpotForTwap(targetTwap, duration);
+
+    if (
+      requiredSpot <= 0 ||
+      requiredSpot >= INITIAL_SPOT_PRICE
+    ) {
+      continue;
+    }
+
+    oracleChecks++;
+
+    if (
+      Math.abs(
+        replayTwap(requiredSpot, duration, false) -
           targetTwap,
-        );
+      ) > 0.01
+    ) {
+      oracleFailures++;
+    }
 
-      const extraction =
-        calculateActualExtraction(
-          targetTwap,
-        );
+    selfFlowChecks++;
 
-      const ratio =
-        attack.totalAttackCost /
-        extraction.pnlAtHonestPrice;
+    if (
+      replayTwap(requiredSpot, duration, true) >
+      replayTwap(requiredSpot, duration, false) +
+        1e-9
+    ) {
+      selfFlowFailures++;
+    }
+  }
+}
 
-      return {
-        targetTwap,
+console.log(
+  `oracle reproduced ${oracleChecks - oracleFailures} of ` +
+    `${oracleChecks} targets within 0.01`,
+);
 
-        manipulatedSpot:
-          attack.manipulatedSpot,
+console.log(
+  `self-flow never raised the TWAP in ` +
+    `${selfFlowChecks - selfFlowFailures} of ` +
+    `${selfFlowChecks} cases`,
+);
 
-        averageEntryPrice:
-          extraction.averageEntryPrice,
+/*
+ * A one-time cost model would leave the ratio below 1 in the
+ * shallowest, longest manipulation, which is the case closest
+ * to plausible. Report the thin margin explicitly rather than
+ * letting the table hide it.
+ */
 
-        positionSize:
-          extraction.positionSize,
+const thinnest = reachable.reduce((a, b) =>
+  Number.isFinite(a.costToProfitRatio) &&
+  Number.isFinite(b.costToProfitRatio) &&
+  b.costToProfitRatio < a.costToProfitRatio
+    ? b
+    : a,
+);
 
-        perpExtraction:
-          extraction.pnlAtHonestPrice,
+console.log("\n=== THINNEST MARGIN ===");
 
-        attackCost:
-          attack.totalAttackCost,
+console.log(
+  `TWAP ${thinnest.targetTwap} over ${thinnest.duration}s: ` +
+    `attack cost ${thinnest.attackCost.toFixed(0)} vs ` +
+    `extraction ${thinnest.roundTripPnl.toFixed(0)}, ` +
+    `ratio ${thinnest.costToProfitRatio.toFixed(2)}x`,
+);
 
-        costToExtractionRatio:
-          ratio,
-
-        attackCostGreaterThanExtraction:
-          attack.totalAttackCost >
-          extraction.pnlAtHonestPrice,
-      };
-    },
-  );
-
-console.table(results);
+console.log(
+  `maintenance margin in force: ${MAINTENANCE_MARGIN}`,
+);
 
 /* ============================================================
- * DETAILED RESULTS
+ * CAPACITY AXIS
+ *
+ * The cost sweep reports a headline PnL whether or not the
+ * attack can actually be put on. This sweep varies only
+ * capacity utilization and records executability separately
+ * from profit, because the two fail independently:
+ *
+ *   - past a threshold the round trip is rejected outright,
+ *     so there is no PnL at all rather than a bad one
+ *   - below it the trade is accepted and books a positive
+ *     headline profit that is still not realizable
  * ========================================================== */
 
-for (const result of results) {
-  console.log(
-    `\n=== TARGET TWAP ${result.targetTwap} ===`,
-  );
+const capacityRows = runCapacityAttackSweep();
 
-  console.log({
-    manipulatedSpot:
-      result.manipulatedSpot,
+console.log("\n=== CAPACITY UTILIZATION ===");
 
-    averageEntryPrice:
-      result.averageEntryPrice,
+console.table(
+  capacityRows.map((row) => ({
+    utilization: `${(row.utilization * 100).toFixed(0)}%`,
+    size: row.attackerSize,
+    margin: row.attackerMargin,
+    entry:
+      row.entryPrice === null
+        ? "--"
+        : row.entryPrice.toFixed(3),
+    exit:
+      row.exitPrice === null
+        ? "--"
+        : row.exitPrice.toFixed(3),
+    headlinePnl:
+      row.headlinePnl === null
+        ? "--"
+        : row.headlinePnl.toFixed(0),
+    liqOnEntry:
+      row.liquidatedOnEntry === null
+        ? "--"
+        : row.liquidatedOnEntry,
+    realizablePnl:
+      row.realizablePnl === null
+        ? "--"
+        : row.realizablePnl.toFixed(0),
+    status: row.entryError
+      ? `entry rejected: ${row.entryError}`
+      : row.exitError
+        ? `exit rejected: ${row.exitError}`
+        : "executable",
+  })),
+);
 
-    positionSize:
-      result.positionSize,
+const rejected = capacityRows.filter(
+  (row) => row.entryError ?? row.exitError,
+);
 
-    perpExtraction:
-      result.perpExtraction,
+const executable = capacityRows.filter(
+  (row) => !row.entryError && !row.exitError,
+);
 
-    attackCost:
-      result.attackCost,
+console.log(
+  `\nExecutable round trips: ${executable.length} of ` +
+    `${capacityRows.length}`,
+);
 
-    costToExtractionRatio:
-      result.costToExtractionRatio,
+console.log(
+  "Rejected round trips:",
+  rejected.length,
+  rejected.length > 0
+    ? `(first at ${(rejected[0]!.utilization * 100).toFixed(0)}% utilization, ` +
+      `${rejected[0]!.entryError ? "entry" : "exit"} leg)`
+    : "",
+);
 
-    attackCostGreaterThanExtraction:
-      result.attackCostGreaterThanExtraction,
-  });
-}
+console.log(
+  "Executable round trips with a positive headline PnL:",
+  executable.filter((row) => (row.headlinePnl ?? 0) > 0)
+    .length,
+  "of",
+  executable.length,
+);
+
+console.log(
+  "Executable round trips with a realizable PnL:",
+  executable.filter(
+    (row) => row.realizablePnl !== null,
+  ).length,
+  "of",
+  executable.length,
+);

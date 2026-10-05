@@ -1,0 +1,419 @@
+{
+  "window": 900,
+  "results": [
+    {
+      "targetTwap": 90,
+      "duration": 120,
+      "requiredSpot": 25,
+      "achievedTwap": 90,
+      "achievedTwapSelfFlow": 98.8125,
+      "selfFlowUplift": 8.8125,
+      "entryPrice": 103.5296,
+      "exitPrice": 95.5846,
+      "extraction": -397249.78,
+      "attackCostDown": 2500000,
+      "attackCostRoundTrip": 8125000,
+      "costToExtraction": -20.453126659358237,
+      "profitableAttack": false,
+      "liquidatableOnRecovery": true
+    },
+    {
+      "targetTwap": 90,
+      "duration": 300,
+      "requiredSpot": 70,
+      "achievedTwap": 90,
+      "achievedTwapSelfFlow": 97.775,
+      "selfFlowUplift": 7.775,
+      "entryPrice": 102.4426,
+      "exitPrice": 94.581,
+      "extraction": -393078.78,
+      "attackCostDown": 159443.18,
+      "attackCostRoundTrip": 697296.05,
+      "costToExtraction": -1.7739346142398946,
+      "profitableAttack": false,
+      "liquidatableOnRecovery": true
+    },
+    {
+      "targetTwap": 90,
+      "duration": 600,
+      "requiredSpot": 85,
+      "achievedTwap": 90,
+      "achievedTwapSelfFlow": 96.0958,
+      "selfFlowUplift": 6.0958,
+      "entryPrice": 100.6833,
+      "exitPrice": 92.9567,
+      "extraction": -386328.13,
+      "attackCostDown": 33033.67,
+      "attackCostRoundTrip": 155057.06,
+      "costToExtraction": -0.4013610312346885,
+      "profitableAttack": false,
+      "liquidatableOnRecovery": true
+    },
+    {
+      "targetTwap": 90,
+      "duration": 900,
+      "requiredSpot": 90,
+      "achievedTwap": 90,
+      "achievedTwapSelfFlow": 94.425,
+      "selfFlowUplift": 4.425,
+      "entryPrice": 98.9327,
+      "exitPrice": 91.3405,
+      "extraction": -379610.98,
+      "attackCostDown": 13879.26,
+      "attackCostRoundTrip": 66583.88,
+      "costToExtraction": -0.1754003124290125,
+      "profitableAttack": false,
+      "liquidatableOnRecovery": false
+    },
+    {
+      "targetTwap": 80,
+      "duration": 300,
+      "requiredSpot": 40,
+      "achievedTwap": 80,
+      "achievedTwapSelfFlow": 87.3,
+      "selfFlowUplift": 7.3,
+      "entryPrice": 91.4675,
+      "exitPrice": 84.4482,
+      "extraction": -350966.79,
+      "attackCostDown": 1067971.81,
+      "attackCostRoundTrip": 3914021.7,
+      "costToExtraction": -11.152114285615601,
+      "profitableAttack": false,
+      "liquidatableOnRecovery": false
+    },
+    {
+      "targetTwap": 80,
+      "duration": 600,
+      "requiredSpot": 70,
+      "achievedTwap": 80,
+      "achievedTwapSelfFlow": 85.6083,
+      "selfFlowUplift": 5.6083,
+      "entryPrice": 89.6951,
+      "exitPrice": 82.8118,
+      "extraction": -344165.88,
+      "attackCostDown": 159443.18,
+      "attackCostRoundTrip": 697296.05,
+      "costToExtraction": -2.0260464157380227,
+      "profitableAttack": false,
+      "liquidatableOnRecovery": false
+    },
+    {
+      "targetTwap": 80,
+      "duration": 900,
+      "requiredSpot": 80,
+      "achievedTwap": 80,
+      "achievedTwapSelfFlow": 83.9333,
+      "selfFlowUplift": 3.9333,
+      "entryPrice": 87.9402,
+      "exitPrice": 81.1915,
+      "extraction": -337431.98,
+      "attackCostDown": 62305.9,
+      "attackCostRoundTrip": 285912.7,
+      "costToExtraction": -0.8473194894039352,
+      "profitableAttack": false,
+      "liquidatableOnRecovery": false
+    },
+    {
+      "targetTwap": 70,
+      "duration": 300,
+      "requiredSpot": 10,
+      "achievedTwap": 70,
+      "achievedTwapSelfFlow": 76.825,
+      "selfFlowUplift": 6.825,
+      "entryPrice": 80.4925,
+      "exitPrice": 74.3154,
+      "extraction": -308854.79,
+      "attackCostDown": 7392527.13,
+      "attackCostRoundTrip": 20199751.65,
+      "costToExtraction": -65.40209897863183,
+      "profitableAttack": false,
+      "liquidatableOnRecovery": false
+    },
+    {
+      "targetTwap": 70,
+      "duration": 600,
+      "requiredSpot": 55,
+      "achievedTwap": 70,
+      "achievedTwapSelfFlow": 75.1208,
+      "selfFlowUplift": 5.1208,
+      "entryPrice": 78.707,
+      "exitPrice": 72.6669,
+      "extraction": -302003.64,
+      "attackCostDown": 450097.87,
+      "attackCostRoundTrip": 1815352.59,
+      "costToExtraction": -6.011028920834216,
+      "profitableAttack": false,
+      "liquidatableOnRecovery": false
+    },
+    {
+      "targetTwap": 70,
+      "duration": 900,
+      "requiredSpot": 70,
+      "achievedTwap": 70,
+      "achievedTwapSelfFlow": 73.4417,
+      "selfFlowUplift": 3.4417,
+      "entryPrice": 76.9476,
+      "exitPrice": 71.0426,
+      "extraction": -295252.99,
+      "attackCostDown": 159443.18,
+      "attackCostRoundTrip": 697296.05,
+      "costToExtraction": -2.361690097455649,
+      "profitableAttack": false,
+      "liquidatableOnRecovery": false
+    },
+    {
+      "targetTwap": 60,
+      "duration": 600,
+      "requiredSpot": 40,
+      "achievedTwap": 60,
+      "achievedTwapSelfFlow": 64.6333,
+      "selfFlowUplift": 4.6333,
+      "entryPrice": 67.7188,
+      "exitPrice": 62.522,
+      "extraction": -259841.39,
+      "attackCostDown": 1067971.81,
+      "attackCostRoundTrip": 3914021.7,
+      "costToExtraction": -15.063118779797449,
+      "profitableAttack": false,
+      "liquidatableOnRecovery": false
+    },
+    {
+      "targetTwap": 60,
+      "duration": 900,
+      "requiredSpot": 60,
+      "achievedTwap": 60,
+      "achievedTwapSelfFlow": 62.95,
+      "selfFlowUplift": 2.95,
+      "entryPrice": 65.9551,
+      "exitPrice": 60.8936,
+      "extraction": -253073.99,
+      "attackCostDown": 327955.59,
+      "attackCostRoundTrip": 1360751.15,
+      "costToExtraction": -5.3768906046677785,
+      "profitableAttack": false,
+      "liquidatableOnRecovery": false
+    },
+    {
+      "targetTwap": 50,
+      "duration": 600,
+      "requiredSpot": 25,
+      "achievedTwap": 50,
+      "achievedTwapSelfFlow": 54.1458,
+      "selfFlowUplift": 4.1458,
+      "entryPrice": 56.7307,
+      "exitPrice": 52.3771,
+      "extraction": -217679.14,
+      "attackCostDown": 2500000,
+      "attackCostRoundTrip": 8125000,
+      "costToExtraction": -37.32557897088724,
+      "profitableAttack": false,
+      "liquidatableOnRecovery": false
+    },
+    {
+      "targetTwap": 50,
+      "duration": 900,
+      "requiredSpot": 50,
+      "achievedTwap": 50,
+      "achievedTwapSelfFlow": 52.4583,
+      "selfFlowUplift": 2.4583,
+      "entryPrice": 54.9626,
+      "exitPrice": 50.7447,
+      "extraction": -210894.99,
+      "attackCostDown": 606601.72,
+      "attackCostRoundTrip": 2374368.67,
+      "costToExtraction": -11.258535206886808,
+      "profitableAttack": false,
+      "liquidatableOnRecovery": false
+    },
+    {
+      "targetTwap": 40,
+      "duration": 600,
+      "requiredSpot": 10,
+      "achievedTwap": 40,
+      "achievedTwapSelfFlow": 43.6583,
+      "selfFlowUplift": 3.6583,
+      "entryPrice": 45.7425,
+      "exitPrice": 42.2322,
+      "extraction": -175516.89,
+      "attackCostDown": 7392527.13,
+      "attackCostRoundTrip": 20199751.65,
+      "costToExtraction": -115.08722093605762,
+      "profitableAttack": false,
+      "liquidatableOnRecovery": false
+    },
+    {
+      "targetTwap": 40,
+      "duration": 900,
+      "requiredSpot": 40,
+      "achievedTwap": 40,
+      "achievedTwapSelfFlow": 41.9667,
+      "selfFlowUplift": 1.9667,
+      "entryPrice": 43.9701,
+      "exitPrice": 40.5958,
+      "extraction": -168715.99,
+      "attackCostDown": 1067971.81,
+      "attackCostRoundTrip": 3914021.7,
+      "costToExtraction": -23.19887793012489,
+      "profitableAttack": false,
+      "liquidatableOnRecovery": false
+    }
+  ],
+  "skipped": [
+    {
+      "targetTwap": 90,
+      "duration": 15,
+      "minimumReachableTwap": 98.3333,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 90,
+      "duration": 30,
+      "minimumReachableTwap": 96.6667,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 90,
+      "duration": 60,
+      "minimumReachableTwap": 93.3333,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 80,
+      "duration": 15,
+      "minimumReachableTwap": 98.3333,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 80,
+      "duration": 30,
+      "minimumReachableTwap": 96.6667,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 80,
+      "duration": 60,
+      "minimumReachableTwap": 93.3333,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 80,
+      "duration": 120,
+      "minimumReachableTwap": 86.6667,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 70,
+      "duration": 15,
+      "minimumReachableTwap": 98.3333,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 70,
+      "duration": 30,
+      "minimumReachableTwap": 96.6667,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 70,
+      "duration": 60,
+      "minimumReachableTwap": 93.3333,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 70,
+      "duration": 120,
+      "minimumReachableTwap": 86.6667,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 60,
+      "duration": 15,
+      "minimumReachableTwap": 98.3333,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 60,
+      "duration": 30,
+      "minimumReachableTwap": 96.6667,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 60,
+      "duration": 60,
+      "minimumReachableTwap": 93.3333,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 60,
+      "duration": 120,
+      "minimumReachableTwap": 86.6667,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 60,
+      "duration": 300,
+      "minimumReachableTwap": 66.6667,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 50,
+      "duration": 15,
+      "minimumReachableTwap": 98.3333,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 50,
+      "duration": 30,
+      "minimumReachableTwap": 96.6667,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 50,
+      "duration": 60,
+      "minimumReachableTwap": 93.3333,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 50,
+      "duration": 120,
+      "minimumReachableTwap": 86.6667,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 50,
+      "duration": 300,
+      "minimumReachableTwap": 66.6667,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 40,
+      "duration": 15,
+      "minimumReachableTwap": 98.3333,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 40,
+      "duration": 30,
+      "minimumReachableTwap": 96.6667,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 40,
+      "duration": 60,
+      "minimumReachableTwap": 93.3333,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 40,
+      "duration": 120,
+      "minimumReachableTwap": 86.6667,
+      "reason": "target unreachable at this duration"
+    },
+    {
+      "targetTwap": 40,
+      "duration": 300,
+      "minimumReachableTwap": 66.6667,
+      "reason": "target unreachable at this duration"
+    }
+  ]
+}

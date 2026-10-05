@@ -16,18 +16,19 @@ export function closePosition(
     throw new Error("POSITION_MARKET_MISMATCH");
   }
 
+  // Validate first. Mutate only after all checks pass.
   if (position.side === "LONG") {
-    market.longOpenInterest -= position.size;
-
-    if (market.longOpenInterest < 0) {
+    if (market.longOpenInterest < position.size) {
       throw new Error("INVALID_LONG_OPEN_INTEREST");
     }
-  } else {
-    market.shortOpenInterest -= position.size;
 
-    if (market.shortOpenInterest < 0) {
+    market.longOpenInterest -= position.size;
+  } else {
+    if (market.shortOpenInterest < position.size) {
       throw new Error("INVALID_SHORT_OPEN_INTEREST");
     }
+
+    market.shortOpenInterest -= position.size;
   }
 
   positionManager.closePosition(positionId);

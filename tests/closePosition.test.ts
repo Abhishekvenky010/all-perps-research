@@ -95,4 +95,34 @@ describe("Normal position close", () => {
       );
     }).toThrow("POSITION_NOT_FOUND");
   });
+  it("does not mutate OI when OI is insufficient", () => {
+  const market = {
+    symbol: "BTC-PERP",
+    indexPrice: 100,
+    ammTwapPrice: 100,
+    longOpenInterest: 50,
+    shortOpenInterest: 0,
+  };
+
+  const positionManager = new PositionManager();
+
+  const position = {
+    id: "position-1",
+    trader: "alice",
+    market: "BTC-PERP",
+    side: "LONG" as const,
+    size: 100,
+    entryPrice: 100,
+    margin: 20,
+  };
+
+  positionManager.openPosition(position);
+
+  expect(() =>
+    closePosition("position-1", market, positionManager),
+  ).toThrow("INVALID_LONG_OPEN_INTEREST");
+
+  expect(market.longOpenInterest).toBe(50);
+  expect(positionManager.getPosition("position-1")).toEqual(position);
+});
 });
