@@ -3,7 +3,23 @@ import { describe, expect, it } from "vitest";
 import type { MarketState } from "../src/market/MarketState.js";
 
 import { PositionManager } from "../src/position/PositionManager.js";
-import { closePosition } from "../src/position/ClosePosition.js";
+import { closePosition as settleClose } from "../src/position/ClosePosition.js";
+import { createLiquidityVault } from "../src/liquidity/LiquidityVault.js";
+import { createMarketConfig } from "./helpers/marketConfig.js";
+
+function closePosition(
+  positionId: string,
+  market: MarketState,
+  positionManager: PositionManager,
+) {
+  return settleClose(
+    positionId,
+    market,
+    createMarketConfig(),
+    positionManager,
+    createLiquidityVault(50_000),
+  );
+}
 
 describe("Normal position close", () => {
   it("releases market capacity when a LONG position is closed", () => {
@@ -11,7 +27,7 @@ describe("Normal position close", () => {
       symbol: "BTC-PERP",
       indexPrice: 100,
       ammTwapPrice: 100,
-      longOpenInterest: 20_000,
+      longOpenInterest: 0,
       shortOpenInterest: 0,
     };
 
@@ -25,7 +41,7 @@ describe("Normal position close", () => {
       size: 20_000,
       entryPrice: 100,
       margin: 1_000,
-    });
+    }, market);
 
     const closed = closePosition(
       "position-1",
@@ -33,7 +49,7 @@ describe("Normal position close", () => {
       positionManager,
     );
 
-    expect(closed.id).toBe("position-1");
+    expect(closed.positionId).toBe("position-1");
 
     expect(market.longOpenInterest).toBe(0);
 
@@ -48,7 +64,7 @@ describe("Normal position close", () => {
       indexPrice: 100,
       ammTwapPrice: 100,
       longOpenInterest: 0,
-      shortOpenInterest: 20_000,
+      shortOpenInterest: 0,
     };
 
     const positionManager = new PositionManager();
@@ -61,7 +77,7 @@ describe("Normal position close", () => {
       size: 20_000,
       entryPrice: 100,
       margin: 1_000,
-    });
+    }, market);
 
     closePosition(
       "position-2",
@@ -100,7 +116,7 @@ describe("Normal position close", () => {
     symbol: "BTC-PERP",
     indexPrice: 100,
     ammTwapPrice: 100,
-    longOpenInterest: 50,
+    longOpenInterest: 0,
     shortOpenInterest: 0,
   };
 
@@ -116,11 +132,12 @@ describe("Normal position close", () => {
     margin: 20,
   };
 
-  positionManager.openPosition(position);
+  positionManager.openPosition(position, market);
+  market.longOpenInterest = 50;
 
   expect(() =>
     closePosition("position-1", market, positionManager),
-  ).toThrow("INVALID_LONG_OPEN_INTEREST");
+  ).toThrow("POSITION_OPEN_INTEREST_MISMATCH");
 
   expect(market.longOpenInterest).toBe(50);
   expect(positionManager.getPosition("position-1")).toEqual(position);

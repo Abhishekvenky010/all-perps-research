@@ -12,12 +12,10 @@ export function recordPriceObservation(
   observations: PriceObservation[],
   observation: PriceObservation,
 ): PriceObservation[] {
-  if (
-    !Number.isFinite(observation.timestamp) ||
-    !Number.isFinite(observation.price) ||
-    observation.price <= 0
-  ) {
-    throw new Error("Invalid price observation");
+  validatePriceObservation(observation);
+
+  for (const existing of observations) {
+    validatePriceObservation(existing);
   }
 
   const sorted = [...observations].sort(
@@ -52,17 +50,44 @@ export function recordPriceObservation(
   return sorted.slice(Math.max(0, anchorIndex));
 }
 
+export function validatePriceObservation(
+  observation: PriceObservation,
+): void {
+  if (
+    !Number.isFinite(observation.timestamp) ||
+    observation.timestamp < 0 ||
+    !Number.isFinite(observation.price) ||
+    observation.price <= 0
+  ) {
+    throw new Error("INVALID_PRICE_OBSERVATION");
+  }
+}
+
 export function calculateTWAP(
   observations: PriceObservation[],
   now: number,
 ): number | null {
-  if (!Number.isFinite(now) || observations.length === 0) {
+  if (!Number.isFinite(now) || now < 0) {
+    throw new Error("INVALID_TWAP_TIME");
+  }
+
+  if (observations.length === 0) {
     return null;
+  }
+
+  for (const observation of observations) {
+    validatePriceObservation(observation);
   }
 
   const sorted = [...observations].sort(
     (a, b) => a.timestamp - b.timestamp,
   );
+
+  for (let i = 1; i < sorted.length; i++) {
+    if (sorted[i]?.timestamp === sorted[i - 1]?.timestamp) {
+      throw new Error("DUPLICATE_OBSERVATION_TIMESTAMP");
+    }
+  }
 
   const windowStart = now - TWAP_WINDOW;
 
@@ -104,9 +129,17 @@ export function calculateTWAP(
     );
 
     weightedPrice += current.price * duration;
+    if (!Number.isFinite(weightedPrice)) {
+      throw new Error("INVALID_TWAP");
+    }
   }
 
-  return weightedPrice / TWAP_WINDOW;
+  const twap = weightedPrice / TWAP_WINDOW;
+  if (!Number.isFinite(twap) || twap <= 0) {
+    throw new Error("INVALID_TWAP");
+  }
+
+  return twap;
 }
 
 export function updateAmmTwap(

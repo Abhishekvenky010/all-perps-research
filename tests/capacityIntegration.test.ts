@@ -28,9 +28,40 @@ describe("Bounded market capacity", () => {
     };
   }
 
+  function seedOpenInterest(
+    state: MarketState,
+    positionManager: PositionManager,
+    longSize: number,
+    shortSize: number,
+  ) {
+    if (longSize > 0) {
+      positionManager.openPosition({
+        id: "existing-long",
+        trader: "existing-long",
+        market: state.symbol,
+        side: "LONG",
+        size: longSize,
+        entryPrice: 100,
+        margin: longSize,
+      }, state);
+    }
+    if (shortSize > 0) {
+      positionManager.openPosition({
+        id: "existing-short",
+        trader: "existing-short",
+        market: state.symbol,
+        side: "SHORT",
+        size: shortSize,
+        entryPrice: 100,
+        margin: shortSize,
+      }, state);
+    }
+  }
+
   it("allows a trade below market capacity", () => {
-    const state = createState(40_000, 30_000);
+    const state = createState(0, 0);
     const positionManager = new PositionManager();
+    seedOpenInterest(state, positionManager, 40_000, 30_000);
 
     const result = simulateTrade(
       state,
@@ -52,8 +83,9 @@ describe("Bounded market capacity", () => {
   });
 
   it("allows exposure up to the capacity boundary", () => {
-    const state = createState(40_000, 40_000);
+    const state = createState(0, 0);
     const positionManager = new PositionManager();
+    seedOpenInterest(state, positionManager, 40_000, 40_000);
 
     const result = simulateTrade(
       state,
@@ -74,8 +106,9 @@ describe("Bounded market capacity", () => {
   });
 
   it("rejects a trade that exceeds market capacity", () => {
-    const state = createState(50_000, 40_000);
+    const state = createState(0, 0);
     const positionManager = new PositionManager();
+    seedOpenInterest(state, positionManager, 50_000, 40_000);
 
     expect(() => {
       simulateTrade(

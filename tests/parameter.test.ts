@@ -2,7 +2,6 @@ import { describe, it } from "vitest";
 
 import { simulateTrade } from "../src/simulation/TradeSimulator.js";
 import { PositionManager } from "../src/position/PositionManager.js";
-const positionManager = new PositionManager();
 
 describe("Skew coefficient analysis", () => {
 
@@ -28,6 +27,27 @@ describe("Skew coefficient analysis", () => {
         shortOpenInterest: 10000,
         ammTwapPrice: 100,
       };
+      const positionManager = new PositionManager();
+      state.longOpenInterest = 0;
+      state.shortOpenInterest = 0;
+      positionManager.openPosition({
+        id: "existing-long",
+        trader: "existing-long",
+        market: state.symbol,
+        side: "LONG",
+        size: 50_000,
+        entryPrice: 100,
+        margin: 5_000,
+      }, state);
+      positionManager.openPosition({
+        id: "existing-short",
+        trader: "existing-short",
+        market: state.symbol,
+        side: "SHORT",
+        size: 10_000,
+        entryPrice: 100,
+        margin: 1_000,
+      }, state);
 
 
       const config = {

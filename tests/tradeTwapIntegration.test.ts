@@ -4,7 +4,7 @@ import type { MarketState } from "../src/market/MarketState.js";
 import type { MarketConfig } from "../src/config/MarketConfig.js";
 
 import { SimulatedPriceFeed } from "../src/oracle/SimulatedPriceFeed.js";
-import { recordPriceAndUpdateTwap } from "../src/oracle/PriceFeedService.js";
+import { recordSimulatedPriceAndUpdateTwap } from "../src/oracle/SimulatedPriceFeedService.js";
 import { advanceSimulation } from "../src/simulation/advanceSimulation.js";
 import type { SimulationEnvironment } from "../src/simulation/SimulationEnvironment.js";
 
@@ -30,7 +30,7 @@ function createEnvironment(): SimulationEnvironment {
 
   const priceFeed = new SimulatedPriceFeed();
 
-  const seededMarket = recordPriceAndUpdateTwap(
+  const seededMarket = recordSimulatedPriceAndUpdateTwap(
     market,
     priceFeed,
     100,

@@ -4,7 +4,7 @@ import { describe, it, expect } from "vitest";
 import type { MarketState } from "../src/market/MarketState.js";
 import type { MarketConfig } from "../src/config/MarketConfig.js";
 
-import { recordAmmPriceObservation } from "../src/oracle/AmmPriceService.js";
+import { recordSimulatedProtocolMarkObservation } from "../src/oracle/SimulatedProtocolMarkObservation.js";
 
 import {
   calculateTWAP,
@@ -32,11 +32,11 @@ function makeState(
   };
 }
 
-describe("AMM price observations and TWAP", () => {
-  it("records the current AMM price", () => {
+describe("Simulated protocol mark observations and TWAP", () => {
+  it("records the protocol-derived mark in the simulation adapter", () => {
     const state = makeState(50_000, 0);
 
-    const observations = recordAmmPriceObservation(
+    const observations = recordSimulatedProtocolMarkObservation(
       [],
       state,
       config,
@@ -51,21 +51,21 @@ describe("AMM price observations and TWAP", () => {
   it("smooths a temporary AMM price spike", () => {
     let observations: PriceObservation[] = [];
 
-    observations = recordAmmPriceObservation(
+    observations = recordSimulatedProtocolMarkObservation(
       observations,
       makeState(0, 0),
       config,
       0,
     );
 
-    observations = recordAmmPriceObservation(
+    observations = recordSimulatedProtocolMarkObservation(
       observations,
       makeState(50_000, 0),
       config,
       450,
     );
 
-    observations = recordAmmPriceObservation(
+    observations = recordSimulatedProtocolMarkObservation(
       observations,
       makeState(0, 0),
       config,

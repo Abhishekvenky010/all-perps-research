@@ -7,6 +7,8 @@ import { PositionManager } from "../src/position/PositionManager.js";
 import { simulateTrade } from "../src/simulation/TradeSimulator.js";
 import { closePosition } from "../src/position/ClosePosition.js";
 import { liquidatePosition } from "../src/risk/LiquidationEngine.js";
+import { createLiquidityVault } from "../src/liquidity/LiquidityVault.js";
+import { createMarketConfig } from "./helpers/marketConfig.js";
 
 describe("Capacity recovery after closing", () => {
   it("releases capacity and allows new exposure", () => {
@@ -22,11 +24,29 @@ describe("Capacity recovery after closing", () => {
       symbol: "BTC-PERP",
       indexPrice: 100,
       ammTwapPrice: 100,
-      longOpenInterest: 40_000,
-      shortOpenInterest: 40_000,
+      longOpenInterest: 0,
+      shortOpenInterest: 0,
     };
 
     const positionManager = new PositionManager();
+    positionManager.openPosition({
+      id: "existing-long",
+      trader: "existing-long",
+      market: market.symbol,
+      side: "LONG",
+      size: 40_000,
+      entryPrice: 100,
+      margin: 2_000,
+    }, market);
+    positionManager.openPosition({
+      id: "existing-short",
+      trader: "existing-short",
+      market: market.symbol,
+      side: "SHORT",
+      size: 40_000,
+      entryPrice: 100,
+      margin: 2_000,
+    }, market);
 
     // Fill the market to capacity.
     const firstTrade = simulateTrade(
@@ -49,7 +69,9 @@ describe("Capacity recovery after closing", () => {
     closePosition(
       firstTrade.position.id,
       market,
+      config,
       positionManager,
+      createLiquidityVault(50_000),
     );
 
     expect(
@@ -82,7 +104,7 @@ describe("Capacity recovery after closing", () => {
     indexPrice: 100,
     ammTwapPrice: 100,
 
-    longOpenInterest: 10000,
+    longOpenInterest: 0,
     shortOpenInterest: 0,
   };
 
@@ -104,14 +126,15 @@ describe("Capacity recovery after closing", () => {
     margin: 5,
   };
 
-  manager.openPosition(position);
+  manager.openPosition(position, market);
 
   expect(() =>
     liquidatePosition(
       position,
-      100,
       market,
+      createMarketConfig(),
       manager,
+      createLiquidityVault(50_000),
       0.05,
     ),
   ).toThrow("POSITION_HEALTHY");
@@ -122,6 +145,6 @@ describe("Capacity recovery after closing", () => {
 
   expect(
     market.longOpenInterest,
-  ).toBe(10000);
+  ).toBe(100);
 });
 });

@@ -57,6 +57,16 @@ describe("Leverage Engine", () => {
 
   });
 
+  it("allows leverage exactly at the maximum boundary", () => {
+    const boundaryPosition = {
+      ...position,
+      size: 20_000,
+      margin: 1_000,
+    };
+
+    expect(isLeverageAllowed(boundaryPosition, 20)).toBe(true);
+  });
+
 
 
   it("rejects leverage above maximum limit", () => {
@@ -110,6 +120,20 @@ describe("Leverage Engine", () => {
     expect(leverage)
       .toBe(1);
 
+  });
+
+  it("rejects invalid margin inputs and invalid maximum leverage", () => {
+    for (const margin of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() =>
+        calculateLeverage({ ...position, margin }),
+      ).toThrow("INVALID_POSITION_MARGIN");
+    }
+
+    for (const maxLeverage of [0, -1, Number.NaN, Number.POSITIVE_INFINITY]) {
+      expect(() =>
+        isLeverageAllowed(position, maxLeverage),
+      ).toThrow("INVALID_MAX_LEVERAGE");
+    }
   });
 
 

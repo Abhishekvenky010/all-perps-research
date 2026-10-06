@@ -1,0 +1,239 @@
+import {
+  describe,
+  expect,
+  it,
+} from "vitest";
+
+import {
+  simulateTrade,
+} from "../src/simulation/TradeSimulator.js";
+
+import {
+  settleAndClosePositionAtPriceForSimulation,
+} from "../src/settlement/ExperimentalSettlement.js";
+import {
+  createLiquidityVault,
+} from "../src/liquidity/LiquidityVault.js";
+
+import {
+  PositionManager,
+} from "../src/position/PositionManager.js";
+
+import {
+  calculateUnrealizedPnL,
+} from "../src/risk/PnL.js";
+
+import type {
+  MarketState,
+} from "../src/market/MarketState.js";
+
+import type {
+  MarketConfig,
+} from "../src/config/MarketConfig.js";
+
+describe(
+  "TWAP manipulation -> actual perp extraction",
+  () => {
+    const config: MarketConfig = {
+      symbol: "BTC-PERP",
+      maxCapacity: 100_000,
+      skewCoefficient: 0.2,
+      capacityCoefficient: 0.05,
+      maxLeverage: 10,
+    };
+
+    it(
+      "measures actual attacker PnL after buying at a manipulated TWAP",
+      () => {
+        const market: MarketState = {
+          symbol: "BTC-PERP",
+          indexPrice: 100,
+          ammTwapPrice: 60,
+          longOpenInterest: 0,
+          shortOpenInterest: 0,
+        };
+
+        const positionManager =
+          new PositionManager();
+
+        const attackerSize = 50_000;
+
+        /*
+         * The attacker has manipulated the oracle
+         * reference downward.
+         *
+         * Honest price:       100
+         * Manipulated TWAP:    60
+         */
+        expect(
+          market.ammTwapPrice,
+        ).toBe(60);
+
+        /*
+         * Use the REAL trade simulator.
+         *
+         * The attacker buys LONG while the
+         * manipulated TWAP is low.
+         */
+        const trade = simulateTrade(
+          market,
+          "LONG",
+          attackerSize,
+          5,
+          config,
+          "attacker",
+          10_000,
+          positionManager,
+        );
+
+        expect(
+          trade.position.size,
+        ).toBe(attackerSize);
+
+        expect(
+          market.longOpenInterest,
+        ).toBe(attackerSize);
+
+        /*
+         * The entry price is NOT simply $60.
+         *
+         * Our actual AMM execution function applies
+         * skew and capacity impact as the trade grows.
+         */
+        expect(
+          trade.averagePrice,
+        ).toBeGreaterThan(60);
+
+        console.log({
+          manipulatedTwap:
+            60,
+          positionSize:
+            trade.position.size,
+          averageEntryPrice:
+            trade.averagePrice,
+          totalCost:
+            trade.totalCost,
+          priceHistory:
+            trade.priceHistory,
+        });
+
+        /*
+         * The manipulation disappears.
+         *
+         * The honest market price is $100.
+         */
+        market.ammTwapPrice = 100;
+
+        /*
+         * Calculate PnL using the REAL risk function.
+         */
+        const pnl =
+          calculateUnrealizedPnL(
+            trade.position,
+            market.ammTwapPrice,
+          );
+
+        console.log({
+          restoredPrice:
+            market.ammTwapPrice,
+          unrealizedPnL:
+            pnl,
+        });
+
+        /*
+         * Because the position was bought below
+         * the restored price, the attacker should
+         * have positive PnL.
+         */
+        expect(pnl).toBeGreaterThan(0);
+
+        /*
+         * Close through the REAL close-position path.
+         *
+         * This should remove the position and
+         * release its open interest.
+         */
+        const closedPosition =
+          settleAndClosePositionAtPriceForSimulation(
+            trade.position.id,
+            market.indexPrice,
+            market,
+            positionManager,
+            createLiquidityVault(3_000_000),
+          );
+
+        expect(
+          closedPosition.positionId,
+        ).toBe(trade.position.id);
+
+        expect(
+          positionManager.getPosition(
+            trade.position.id,
+          ),
+        ).toBeUndefined();
+
+        expect(
+          market.longOpenInterest,
+        ).toBe(0);
+
+        console.log({
+          attackerEntryPrice:
+            trade.averagePrice,
+          honestExitPrice:
+            market.ammTwapPrice,
+          realizedPnL:
+            pnl,
+          remainingLongOI:
+            market.longOpenInterest,
+        });
+      },
+    );
+
+    it(
+      "cannot exceed the protocol market capacity",
+      () => {
+        const market: MarketState = {
+          symbol: "BTC-PERP",
+          indexPrice: 100,
+          ammTwapPrice: 60,
+          longOpenInterest: 0,
+          shortOpenInterest: 0,
+        };
+
+        const positionManager =
+          new PositionManager();
+
+        /*
+         * Request more than the protocol's
+         * maximum capacity.
+         */
+        expect(() =>
+          simulateTrade(
+            market,
+            "LONG",
+            150_000,
+            5,
+            config,
+            "attacker",
+            20_000,
+            positionManager,
+          ),
+        ).toThrow(
+          "MARKET_CAPACITY_EXCEEDED",
+        );
+
+        /*
+         * Failed execution must not partially
+         * modify the market.
+         */
+        expect(
+          market.longOpenInterest,
+        ).toBe(0);
+
+        expect(
+          positionManager.getAllPositions(),
+        ).toHaveLength(0);
+      },
+    );
+  },
+);

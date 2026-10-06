@@ -9,9 +9,7 @@ import {
   calculateMarginRatio,
 } from "./Margin.js";
 
-import {
-  isLiquidatable,
-} from "./Liquidation.js";
+import { isMarginRatioLiquidatable } from "./Liquidation.js";
 
 
 /*
@@ -89,9 +87,8 @@ export function markPosition(
     pnl,
     equity,
     marginRatio,
-    liquidatable: isLiquidatable(
-      position,
-      pnl,
+    liquidatable: isMarginRatioLiquidatable(
+      marginRatio,
       maintenanceMargin,
     ),
   };

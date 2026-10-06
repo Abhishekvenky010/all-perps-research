@@ -9,6 +9,7 @@ import { markPosition } from "../src/risk/PositionMark.js";
 import { liquidatePosition } from "../src/risk/LiquidationEngine.js";
 import { getCurrentAmmPrice } from "../src/amm/Pricing.js";
 import { canIncreaseExposure } from "../src/amm/Capacity.js";
+import { createLiquidityVault } from "../src/liquidity/LiquidityVault.js";
 
 const config: MarketConfig = {
   symbol: "BTC-PERP",
@@ -72,9 +73,18 @@ describe("AMM price -> PnL -> margin -> liquidation -> OI -> capacity", () => {
 
   it("liquidates an underwater long when the AMM price falls", () => {
     // Short-heavy market: the AMM price trades below the TWAP.
-    const state = createState(10_000, 60_000);
+    const state = createState(0, 0);
 
     const manager = new PositionManager();
+    manager.openPosition({
+      id: "p-backing-shorts",
+      trader: "short-trader",
+      market: "BTC-PERP",
+      side: "SHORT",
+      size: 60_000,
+      entryPrice: 100,
+      margin: 1_000_000,
+    }, state);
 
     const position = {
       id: "p-underwater",
@@ -86,7 +96,7 @@ describe("AMM price -> PnL -> margin -> liquidation -> OI -> capacity", () => {
       margin: 100,
     };
 
-    manager.openPosition(position);
+    manager.openPosition(position, state);
 
     const markPrice = getCurrentAmmPrice(state, config);
 
@@ -95,9 +105,10 @@ describe("AMM price -> PnL -> margin -> liquidation -> OI -> capacity", () => {
     // Equity 100 - large loss drops the margin ratio below 0.05.
     const result = liquidatePosition(
       position,
-      markPrice,
       state,
+      config,
       manager,
+      createLiquidityVault(100_000),
       0.05,
     );
 
@@ -110,7 +121,7 @@ describe("AMM price -> PnL -> margin -> liquidation -> OI -> capacity", () => {
   it("recovers capacity after a sweep liquidates a crowded book", () => {
     // The TWAP crashes, so longs entered at 110 are underwater
     // even though long skew is still pushing the mark up.
-    const state = createState(90_000, 10_000);
+    const state = createState(0, 0);
     state.ammTwapPrice = 90;
 
     const manager = new PositionManager();
@@ -132,39 +143,52 @@ describe("AMM price -> PnL -> margin -> liquidation -> OI -> capacity", () => {
       trader: "Dave",
       market: "BTC-PERP",
       side: "LONG" as const,
-      size: 20_000,
+      size: 70_000,
       entryPrice: 100,
       margin: 50_000,
     };
 
-    manager.openPosition(fragile);
-    manager.openPosition(healthy);
+    manager.openPosition(fragile, state);
+    manager.openPosition(healthy, state);
+    manager.openPosition({
+      id: "p-backing-shorts",
+      trader: "short-trader",
+      market: "BTC-PERP",
+      side: "SHORT",
+      size: 10_000,
+      entryPrice: 100,
+      margin: 1_000_000,
+    }, state);
 
     const result = runLiquidationSweep(
       state,
       config,
       manager,
+      createLiquidityVault(100_000),
     );
 
-    // The fragile long is liquidated.
-    expect(result.liquidations).toHaveLength(1);
+    // Both longs are underwater at their own-exposure-excluded marks.
+    expect(result.liquidations).toHaveLength(2);
     expect(
       result.liquidations[0]?.positionId,
     ).toBe("p-fragile");
+    expect(
+      result.liquidations[1]?.positionId,
+    ).toBe("p-healthy");
 
-    // Its open interest is released.
-    expect(result.releasedOpenInterest).toBe(20_000);
-    expect(state.longOpenInterest).toBe(70_000);
+    // Their open interest is released.
+    expect(result.releasedOpenInterest).toBe(90_000);
+    expect(state.longOpenInterest).toBe(0);
 
     // Capacity is recovered, not just re-labelled.
     expect(
       result.recoveredCapacity,
-    ).toBeCloseTo(20_000, 10);
+    ).toBeCloseTo(90_000, 10);
     expect(
       result.capacityAfter.remainingCapacity,
     ).toBeCloseTo(
       result.capacityBefore.remainingCapacity +
-        20_000,
+        90_000,
       10,
     );
 
@@ -174,17 +198,17 @@ describe("AMM price -> PnL -> margin -> liquidation -> OI -> capacity", () => {
     ).toBeCloseTo(1, 10);
     expect(
       result.capacityAfter.capacityUsage,
-    ).toBeCloseTo(0.8, 10);
+    ).toBeCloseTo(0.1, 10);
 
-    // The healthy position survives.
+    // No long positions survive the counterfactual marks.
     expect(
       manager.getPosition("p-healthy"),
-    ).toBeDefined();
+    ).toBeUndefined();
     expect(result.healthAfter).toBe(1);
   });
 
   it("lets a new trade use the recovered capacity", () => {
-    const state = createState(90_000, 10_000);
+    const state = createState(0, 0);
     state.ammTwapPrice = 90;
 
     const manager = new PositionManager();
@@ -197,14 +221,37 @@ describe("AMM price -> PnL -> margin -> liquidation -> OI -> capacity", () => {
       size: 20_000,
       entryPrice: 110,
       margin: 200,
-    });
+    }, state);
+    manager.openPosition({
+      id: "p-backing-longs",
+      trader: "long-trader",
+      market: "BTC-PERP",
+      side: "LONG",
+      size: 70_000,
+      entryPrice: 100,
+      margin: 1_000_000,
+    }, state);
+    manager.openPosition({
+      id: "p-backing-shorts",
+      trader: "short-trader",
+      market: "BTC-PERP",
+      side: "SHORT",
+      size: 10_000,
+      entryPrice: 100,
+      margin: 1_000_000,
+    }, state);
 
     // Before the sweep the market is full.
     expect(
       canIncreaseExposure(state, config, 1),
     ).toBe(false);
 
-    runLiquidationSweep(state, config, manager);
+    runLiquidationSweep(
+      state,
+      config,
+      manager,
+      createLiquidityVault(100_000),
+    );
 
     // After the sweep there is room again.
     expect(
@@ -213,7 +260,7 @@ describe("AMM price -> PnL -> margin -> liquidation -> OI -> capacity", () => {
   });
 
   it("pushes the AMM price back toward the TWAP as skew unwinds", () => {
-    const state = createState(90_000, 10_000);
+    const state = createState(0, 0);
     state.ammTwapPrice = 90;
 
     const manager = new PositionManager();
@@ -226,7 +273,25 @@ describe("AMM price -> PnL -> margin -> liquidation -> OI -> capacity", () => {
       size: 20_000,
       entryPrice: 110,
       margin: 200,
-    });
+    }, state);
+    manager.openPosition({
+      id: "p-backing-longs",
+      trader: "long-trader",
+      market: "BTC-PERP",
+      side: "LONG",
+      size: 70_000,
+      entryPrice: 100,
+      margin: 1_000_000,
+    }, state);
+    manager.openPosition({
+      id: "p-backing-shorts",
+      trader: "short-trader",
+      market: "BTC-PERP",
+      side: "SHORT",
+      size: 10_000,
+      entryPrice: 100,
+      margin: 1_000_000,
+    }, state);
 
     const skewedPrice = getCurrentAmmPrice(
       state,
@@ -237,6 +302,7 @@ describe("AMM price -> PnL -> margin -> liquidation -> OI -> capacity", () => {
       state,
       config,
       manager,
+      createLiquidityVault(100_000),
     );
 
     // Releasing the long reduces skew, so the mark falls back
@@ -251,7 +317,7 @@ describe("AMM price -> PnL -> margin -> liquidation -> OI -> capacity", () => {
   });
 
   it("is a no-op on a balanced, healthy book", () => {
-    const state = createState(30_000, 30_000);
+    const state = createState(0, 0);
 
     const manager = new PositionManager();
 
@@ -263,12 +329,31 @@ describe("AMM price -> PnL -> margin -> liquidation -> OI -> capacity", () => {
       size: 10_000,
       entryPrice: 100,
       margin: 5_000,
-    });
+    }, state);
+    manager.openPosition({
+      id: "p-backing-longs",
+      trader: "long-trader",
+      market: "BTC-PERP",
+      side: "LONG",
+      size: 30_000,
+      entryPrice: 100,
+      margin: 1_000_000,
+    }, state);
+    manager.openPosition({
+      id: "p-backing-shorts",
+      trader: "short-trader",
+      market: "BTC-PERP",
+      side: "SHORT",
+      size: 30_000,
+      entryPrice: 100,
+      margin: 1_000_000,
+    }, state);
 
     const result = runLiquidationSweep(
       state,
       config,
       manager,
+      createLiquidityVault(100_000),
     );
 
     expect(result.liquidations).toHaveLength(0);
@@ -282,7 +367,11 @@ describe("AMM price -> PnL -> margin -> liquidation -> OI -> capacity", () => {
   });
 
   it("ignores positions from other markets", () => {
-    const state = createState(90_000, 10_000);
+    const state = createState(0, 0);
+    const otherMarket = {
+      ...createState(0, 0),
+      symbol: "ETH-PERP",
+    };
 
     const manager = new PositionManager();
 
@@ -294,12 +383,13 @@ describe("AMM price -> PnL -> margin -> liquidation -> OI -> capacity", () => {
       size: 5_000,
       entryPrice: 100,
       margin: 50,
-    });
+    }, otherMarket);
 
     const result = runLiquidationSweep(
       state,
       config,
       manager,
+      createLiquidityVault(100_000),
     );
 
     expect(result.liquidations).toHaveLength(0);

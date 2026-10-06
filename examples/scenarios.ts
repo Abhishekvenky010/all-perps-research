@@ -2,7 +2,7 @@ import { simulateTrade } from "../src/simulation/TradeSimulator.js";
 import { PositionManager } from "../src/position/PositionManager.js";
 import type { MarketState } from "../src/market/MarketState.js";
 import { SimulatedPriceFeed } from "../src/oracle/SimulatedPriceFeed.js";
-import { recordPriceAndUpdateTwap } from "../src/oracle/PriceFeedService.js";
+import { recordSimulatedPriceAndUpdateTwap } from "../src/oracle/SimulatedPriceFeedService.js";
 import type { SimulationEnvironment } from "../src/simulation/SimulationEnvironment.js";
 
 const config = {
@@ -29,28 +29,28 @@ function createScenarioState(
 
   const priceFeed = new SimulatedPriceFeed();
 
-  market = recordPriceAndUpdateTwap(
+  market = recordSimulatedPriceAndUpdateTwap(
     market,
     priceFeed,
     100,
     0,
   );
 
-  market = recordPriceAndUpdateTwap(
+  market = recordSimulatedPriceAndUpdateTwap(
     market,
     priceFeed,
     102,
     300,
   );
 
-  market = recordPriceAndUpdateTwap(
+  market = recordSimulatedPriceAndUpdateTwap(
     market,
     priceFeed,
     101,
     600,
   );
 
-  market = recordPriceAndUpdateTwap(
+  market = recordSimulatedPriceAndUpdateTwap(
     market,
     priceFeed,
     103,

@@ -1,17 +1,8 @@
-import { describe, it, expect } from "vitest";
+import { describe, expect, it } from "vitest";
+import { calculatePositionSettlement } from "../src/settlement/PositionSettlement.js";
 
-import {
-  settlePosition,
-  calculatePositionSettlement,
-} from "../src/settlement/PositionSettlement.js";
-import {
-  createLiquidityVault,
-} from "../src/liquidity/LiquidityVault.js";
-
-describe("Position settlement", () => {
-  it("settles a LONG trader profit", () => {
-    const vault = createLiquidityVault(50_000);
-
+describe("Position settlement calculation", () => {
+  it("calculates LONG profit without mutating lifecycle state", () => {
     const position = {
       id: "1",
       trader: "Alice",
@@ -22,24 +13,50 @@ describe("Position settlement", () => {
       margin: 1_000,
     };
 
-    const result = settlePosition(
-      position,
-      120,
-      vault,
-    );
-
-    expect(result.pnl).toBe(2_000);
-    expect(result.traderSettlement).toBe(3_000);
-
-    expect(vault.traderPnL).toBe(2_000);
-    expect(vault.availableCapital).toBe(48_000);
+    expect(calculatePositionSettlement(position, 120)).toEqual({
+      positionId: "1",
+      side: "LONG",
+      size: 100,
+      entryPrice: 100,
+      settlementPrice: 120,
+      pnl: 2_000,
+      traderSettlement: 3_000,
+    });
   });
 
-  it("settles a LONG trader loss", () => {
-    const vault = createLiquidityVault(50_000);
-
-    const position = {
+  it("preserves the established LONG and SHORT PnL formulas", () => {
+    const base = {
       id: "2",
+      trader: "Alice",
+      market: "BTC-PERP",
+      size: 100,
+      entryPrice: 100,
+      margin: 1_000,
+    };
+
+    expect(
+      calculatePositionSettlement(
+        { ...base, side: "LONG" },
+        90,
+      ).pnl,
+    ).toBe(-1_000);
+    expect(
+      calculatePositionSettlement(
+        { ...base, side: "SHORT" },
+        90,
+      ).pnl,
+    ).toBe(1_000);
+    expect(
+      calculatePositionSettlement(
+        { ...base, side: "SHORT" },
+        110,
+      ).pnl,
+    ).toBe(-1_000);
+  });
+
+  it("rejects a non-finite calculated result", () => {
+    const position = {
+      id: "3",
       trader: "Alice",
       market: "BTC-PERP",
       side: "LONG" as const,
@@ -48,92 +65,8 @@ describe("Position settlement", () => {
       margin: 1_000,
     };
 
-    const result = settlePosition(
-      position,
-      90,
-      vault,
-    );
-
-    expect(result.pnl).toBe(-1_000);
-    expect(result.traderSettlement).toBe(0);
-
-    expect(vault.traderPnL).toBe(-1_000);
-    expect(vault.availableCapital).toBe(51_000);
+    expect(() =>
+      calculatePositionSettlement(position, Number.NaN),
+    ).toThrow("INVALID_POSITION_SETTLEMENT");
   });
-
-  it("settles a SHORT trader profit", () => {
-    const vault = createLiquidityVault(50_000);
-
-    const position = {
-      id: "3",
-      trader: "Bob",
-      market: "BTC-PERP",
-      side: "SHORT" as const,
-      size: 100,
-      entryPrice: 100,
-      margin: 1_000,
-    };
-
-    const result = settlePosition(
-      position,
-      90,
-      vault,
-    );
-
-    expect(result.pnl).toBe(1_000);
-    expect(result.traderSettlement).toBe(2_000);
-
-    expect(vault.traderPnL).toBe(1_000);
-    expect(vault.availableCapital).toBe(49_000);
-  });
-
-  it("settles a SHORT trader loss", () => {
-    const vault = createLiquidityVault(50_000);
-
-    const position = {
-      id: "4",
-      trader: "Bob",
-      market: "BTC-PERP",
-      side: "SHORT" as const,
-      size: 100,
-      entryPrice: 100,
-      margin: 1_000,
-    };
-
-    const result = settlePosition(
-      position,
-      110,
-      vault,
-    );
-
-    expect(result.pnl).toBe(-1_000);
-    expect(result.traderSettlement).toBe(0);
-
-    expect(vault.traderPnL).toBe(-1_000);
-    expect(vault.availableCapital).toBe(51_000);
-  });
-  it("calculates settlement without changing the vault", () => {
-  const vault = createLiquidityVault(50_000);
-
-  const position = {
-    id: "5",
-    trader: "Alice",
-    market: "BTC-PERP",
-    side: "LONG" as const,
-    size: 100,
-    entryPrice: 100,
-    margin: 1_000,
-  };
-
-  const result = calculatePositionSettlement(
-    position,
-    120,
-  );
-
-  expect(result.pnl).toBe(2_000);
-  expect(result.traderSettlement).toBe(3_000);
-
-  expect(vault.traderPnL).toBe(0);
-  expect(vault.availableCapital).toBe(50_000);
-});
 });

@@ -1,12 +1,14 @@
 import { describe, it, expect } from "vitest";
 
+import { createLiquidityVault } from "../src/liquidity/LiquidityVault.js";
 import {
-  liquidatePosition,
-} from "../src/risk/LiquidationEngine.js";
+  settleAndLiquidatePosition,
+} from "../src/settlement/SettleAndLiquidatePosition.js";
 
 import {
   PositionManager,
 } from "../src/position/PositionManager.js";
+import { createMarketConfig } from "./helpers/marketConfig.js";
 
 
 describe("Liquidation Execution", () => {
@@ -26,7 +28,7 @@ describe("Liquidation Execution", () => {
       indexPrice: 110,
       ammTwapPrice: 110,
 
-      longOpenInterest: 10000,
+      longOpenInterest: 0,
 
       shortOpenInterest: 0,
 
@@ -52,16 +54,17 @@ describe("Liquidation Execution", () => {
     };
 
 
-    manager.openPosition(position);
+    manager.openPosition(position, market);
 
 
 
     expect(() =>
-      liquidatePosition(
-        position,
-        110,
+      settleAndLiquidatePosition(
+        position.id,
         market,
+        createMarketConfig(),
         manager,
+        createLiquidityVault(50_000),
         0.05,
       )
     ).toThrow(
@@ -92,7 +95,7 @@ describe("Liquidation Execution", () => {
       indexPrice: 80,
       ammTwapPrice: 80,
 
-      longOpenInterest: 10000,
+      longOpenInterest: 0,
 
       shortOpenInterest: 0,
 
@@ -118,16 +121,17 @@ describe("Liquidation Execution", () => {
     };
 
 
-    manager.openPosition(position);
+    manager.openPosition(position, market);
 
 
 
     const result =
-      liquidatePosition(
-        position,
-        80,
+      settleAndLiquidatePosition(
+        position.id,
         market,
+        createMarketConfig(),
         manager,
+        createLiquidityVault(50_000),
         0.05,
       );
 
@@ -161,7 +165,7 @@ describe("Liquidation Execution", () => {
       indexPrice: 80,
       ammTwapPrice: 80,
 
-      longOpenInterest: 50000,
+      longOpenInterest: 0,
 
       shortOpenInterest: 0,
 
@@ -187,22 +191,23 @@ describe("Liquidation Execution", () => {
     };
 
 
-    manager.openPosition(position);
+    manager.openPosition(position, market);
 
 
 
-    liquidatePosition(
-      position,
-      80,
+    settleAndLiquidatePosition(
+      position.id,
       market,
+      createMarketConfig(),
       manager,
+      createLiquidityVault(50_000),
       0.05,
     );
 
 
     expect(
       market.longOpenInterest
-    ).toBe(40000);
+    ).toBe(0);
 
 
   });

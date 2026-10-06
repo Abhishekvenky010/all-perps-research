@@ -11,6 +11,7 @@ import {
 import {
   PositionManager,
 } from "../src/position/PositionManager.js";
+import { createMarketConfig } from "./helpers/marketConfig.js";
 
 describe("Settle and close position", () => {
   it("settles a profitable LONG and closes it", () => {
@@ -19,8 +20,8 @@ describe("Settle and close position", () => {
     const market = {
       symbol: "BTC-PERP",
       indexPrice: 100,
-      ammTwapPrice: 100,
-      longOpenInterest: 100,
+      ammTwapPrice: 110,
+      longOpenInterest: 0,
       shortOpenInterest: 0,
     };
 
@@ -36,12 +37,12 @@ describe("Settle and close position", () => {
       margin: 1_000,
     };
 
-    positionManager.openPosition(position);
+    positionManager.openPosition(position, market);
 
     const result = settleAndClosePosition(
       position.id,
-      110,
       market,
+      createMarketConfig(),
       positionManager,
       vault,
     );
@@ -57,6 +58,19 @@ describe("Settle and close position", () => {
     expect(
       positionManager.getPosition(position.id),
     ).toBeUndefined();
+    expect(positionManager.getPositionLifecycle(position.id)).toBe("SETTLED");
+
+    expect(() =>
+      settleAndClosePosition(
+        position.id,
+        market,
+        createMarketConfig(),
+        positionManager,
+        vault,
+      ),
+    ).toThrow("POSITION_NOT_FOUND");
+    expect(vault.traderPnL).toBe(1_000);
+    expect(market.longOpenInterest).toBe(0);
   });
 
   it("settles a losing SHORT and closes it", () => {
@@ -65,9 +79,9 @@ describe("Settle and close position", () => {
     const market = {
       symbol: "BTC-PERP",
       indexPrice: 100,
-      ammTwapPrice: 100,
+      ammTwapPrice: 110,
       longOpenInterest: 0,
-      shortOpenInterest: 100,
+      shortOpenInterest: 0,
     };
 
     const positionManager = new PositionManager();
@@ -82,12 +96,12 @@ describe("Settle and close position", () => {
       margin: 1_000,
     };
 
-    positionManager.openPosition(position);
+    positionManager.openPosition(position, market);
 
     const result = settleAndClosePosition(
       position.id,
-      110,
       market,
+      createMarketConfig(),
       positionManager,
       vault,
     );
@@ -120,8 +134,8 @@ describe("Settle and close position", () => {
     expect(() =>
       settleAndClosePosition(
         "missing-position",
-        110,
         market,
+        createMarketConfig(),
         positionManager,
         vault,
       ),
@@ -130,5 +144,45 @@ describe("Settle and close position", () => {
     expect(vault.traderPnL).toBe(0);
     expect(vault.availableCapital).toBe(50_000);
     expect(market.longOpenInterest).toBe(100);
+  });
+
+  it("keeps the position and vault unchanged when OI release is invalid", () => {
+    const vault = createLiquidityVault(50_000);
+    const market = {
+      symbol: "BTC-PERP",
+      indexPrice: 100,
+      ammTwapPrice: 110,
+      longOpenInterest: 0,
+      shortOpenInterest: 0,
+    };
+    const positionManager = new PositionManager();
+    const position = {
+      id: "over-release",
+      trader: "Alice",
+      market: "BTC-PERP",
+      side: "LONG" as const,
+      size: 100,
+      entryPrice: 100,
+      margin: 1_000,
+    };
+
+    positionManager.openPosition(position, market);
+    market.longOpenInterest = 50;
+
+    expect(() =>
+      settleAndClosePosition(
+        position.id,
+        market,
+        createMarketConfig(),
+        positionManager,
+        vault,
+      ),
+    ).toThrow("POSITION_OPEN_INTEREST_MISMATCH");
+
+    expect(positionManager.getPosition(position.id)).toEqual(position);
+    expect(positionManager.getPositionLifecycle(position.id)).toBe("OPEN");
+    expect(market.longOpenInterest).toBe(50);
+    expect(vault.traderPnL).toBe(0);
+    expect(vault.availableCapital).toBe(50_000);
   });
 });

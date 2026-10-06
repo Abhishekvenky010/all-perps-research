@@ -1,9 +1,10 @@
 import type { MarketState } from "../market/MarketState.js";
 import type { Side } from "../amm/Pricing.js";
-import { getExecutionPrice,getAverageExecutionPrice } from "../amm/Pricing.js";
+import { getAverageExecutionPrice } from "../amm/Pricing.js";
 import { canIncreaseExposure } from "../amm/Capacity.js";
 import type { MarketConfig } from "../config/MarketConfig.js";
 import type { Position } from "../position/Position.js";
+import { validatePosition } from "../position/Position.js";
 import { generatePositionId } from "../position/PositionId.js";
 import type { PositionManager } from "../position/PositionManager.js";
 import { isLeverageAllowed } from "../risk/Leverage.js";
@@ -38,6 +39,18 @@ export function simulateTrade(
   margin: number,
   positionManager: PositionManager,
 ): TradeSimulationResult {
+  if (config.symbol !== state.symbol) {
+    throw new Error("MARKET_CONFIG_MISMATCH");
+  }
+
+  if (!Number.isFinite(size) || size <= 0) {
+    throw new Error("INVALID_TRADE_SIZE");
+  }
+
+  if (!Number.isInteger(steps) || steps <= 0) {
+    throw new Error("INVALID_TRADE_STEPS");
+  }
+
   // Check leverage before execution.
   const tempPosition = {
     id: "temp",
@@ -48,6 +61,13 @@ export function simulateTrade(
     entryPrice: state.indexPrice,
     margin,
   };
+
+  validatePosition(tempPosition);
+  positionManager.assertOpenInterestMatches(state);
+
+  if (!canIncreaseExposure(state, config, size)) {
+    throw new Error("MARKET_CAPACITY_EXCEEDED");
+  }
 
   if (!isLeverageAllowed(tempPosition, config.maxLeverage)) {
     throw new Error("MAX_LEVERAGE_EXCEEDED");
@@ -64,10 +84,8 @@ export function simulateTrade(
   const prices: number[] = [];
 
   for (let i = 0; i < steps; i++) {
-    // Capacity check.
-    if (!canIncreaseExposure(workingState, config, stepSize)) {
-      throw new Error("MARKET_CAPACITY_EXCEEDED");
-    }
+    const currentStepSize =
+      i === steps - 1 ? size - totalSize : stepSize;
 
     // Get AMM execution price.
     const executionPrice = getAverageExecutionPrice(
@@ -76,16 +94,19 @@ export function simulateTrade(
       side,
     );
 
-    totalCost += executionPrice * stepSize;
-    totalSize += stepSize;
+    totalCost += executionPrice * currentStepSize;
+    totalSize += currentStepSize;
 
     prices.push(executionPrice);
 
     // Update only the temporary market state.
-    applyExposure(workingState, side, stepSize);
+    applyExposure(workingState, side, currentStepSize);
   }
 
   const averagePrice = totalCost / totalSize;
+  if (!Number.isFinite(averagePrice) || !Number.isFinite(totalCost)) {
+    throw new Error("INVALID_TRADE_EXECUTION");
+  }
 
   const position: Position = {
     id: generatePositionId(),
@@ -97,16 +118,17 @@ export function simulateTrade(
     margin,
   };
 
-  // Commit market changes only after all execution steps succeed.
-  Object.assign(state, workingState);
-
-  positionManager.openPosition(position);
+  const storedPosition = positionManager.openPosition(
+    position,
+    state,
+    config.maxCapacity,
+  );
 
   return {
     averagePrice,
     totalCost,
     finalState: state,
     priceHistory: prices,
-    position,
+    position: storedPosition,
   };
 }

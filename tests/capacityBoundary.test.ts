@@ -37,6 +37,39 @@ function total(state: MarketState): number {
   return state.longOpenInterest + state.shortOpenInterest;
 }
 
+function seedOpenInterest(
+  state: MarketState,
+  positionManager: PositionManager,
+  longSize: number,
+  shortSize: number,
+): void {
+  state.longOpenInterest = 0;
+  state.shortOpenInterest = 0;
+
+  if (longSize > 0) {
+    positionManager.openPosition({
+      id: "seed-long",
+      trader: "existing-long",
+      market: state.symbol,
+      side: "LONG",
+      size: longSize,
+      entryPrice: 100,
+      margin: longSize,
+    }, state);
+  }
+  if (shortSize > 0) {
+    positionManager.openPosition({
+      id: "seed-short",
+      trader: "existing-short",
+      market: state.symbol,
+      side: "SHORT",
+      size: shortSize,
+      entryPrice: 100,
+      margin: shortSize,
+    }, state);
+  }
+}
+
 
 describe("Capacity boundary", () => {
 
@@ -48,6 +81,7 @@ describe("Capacity boundary", () => {
     // 20_000 of room, 20_000 trade.
     const state = createState(80_000, 0);
     const positionManager = new PositionManager();
+    seedOpenInterest(state, positionManager, 80_000, 0);
 
     expect(getRemainingCapacity(state, config)).toBe(20_000);
 
@@ -64,12 +98,13 @@ describe("Capacity boundary", () => {
 
     expect(total(state)).toBe(100_000);
     expect(result.position.size).toBe(20_000);
-    expect(positionManager.getAllPositions()).toHaveLength(1);
+    expect(positionManager.getAllPositions()).toHaveLength(2);
   });
 
   it("accepts a trade filling the final single unit of capacity", () => {
     const state = createState(99_999, 0);
     const positionManager = new PositionManager();
+    seedOpenInterest(state, positionManager, 99_999, 0);
 
     expect(getRemainingCapacity(state, config)).toBe(1);
 
@@ -91,6 +126,10 @@ describe("Capacity boundary", () => {
     // 80_000 total leaves exactly 20_000 of room.
     const longFill = createState(40_000, 40_000);
     const shortFill = createState(40_000, 40_000);
+    const longManager = new PositionManager();
+    const shortManager = new PositionManager();
+    seedOpenInterest(longFill, longManager, 40_000, 40_000);
+    seedOpenInterest(shortFill, shortManager, 40_000, 40_000);
 
     expect(getRemainingCapacity(longFill, config)).toBe(20_000);
     expect(getRemainingCapacity(shortFill, config)).toBe(20_000);
@@ -103,7 +142,7 @@ describe("Capacity boundary", () => {
       config,
       "trader-1",
       1_500,
-      new PositionManager(),
+      longManager,
     );
 
     simulateTrade(
@@ -114,7 +153,7 @@ describe("Capacity boundary", () => {
       config,
       "trader-2",
       1_500,
-      new PositionManager(),
+      shortManager,
     );
 
     expect(total(longFill)).toBe(100_000);
@@ -129,6 +168,7 @@ describe("Capacity boundary", () => {
   it("rejects any additional trade at exactly maxCapacity", () => {
     const state = createState(100_000, 0);
     const positionManager = new PositionManager();
+    seedOpenInterest(state, positionManager, 100_000, 0);
 
     expect(getRemainingCapacity(state, config)).toBe(0);
 
@@ -149,6 +189,7 @@ describe("Capacity boundary", () => {
   it("rejects a trade one unit over capacity", () => {
     const state = createState(99_999, 0);
     const positionManager = new PositionManager();
+    seedOpenInterest(state, positionManager, 99_999, 0);
 
     expect(() =>
       simulateTrade(
@@ -168,6 +209,7 @@ describe("Capacity boundary", () => {
     for (const side of ["LONG", "SHORT"] as const) {
       const state = createState(50_000, 50_000);
       const positionManager = new PositionManager();
+      seedOpenInterest(state, positionManager, 50_000, 50_000);
 
       expect(() =>
         simulateTrade(
@@ -196,6 +238,9 @@ describe("Capacity boundary", () => {
     expect(
       canIncreaseExposure(exact, config, 20_001),
     ).toBe(false);
+    expect(
+      canIncreaseExposure(createState(100_000, 0), config, 1e-10),
+    ).toBe(false);
 
     const full = createState(100_000, 0);
 
@@ -210,8 +255,9 @@ describe("Capacity boundary", () => {
   */
   describe("failed trade leaves state unchanged", () => {
     it("leaves open interest untouched", () => {
-      const state = createState(90_000, 5_000);
+      const state = createState(0, 0);
       const positionManager = new PositionManager();
+      seedOpenInterest(state, positionManager, 90_000, 5_000);
 
       const before = { ...state };
 
@@ -236,8 +282,9 @@ describe("Capacity boundary", () => {
     });
 
     it("opens no position", () => {
-      const state = createState(90_000, 5_000);
+      const state = createState(0, 0);
       const positionManager = new PositionManager();
+      seedOpenInterest(state, positionManager, 90_000, 5_000);
 
       expect(() =>
         simulateTrade(
@@ -254,11 +301,11 @@ describe("Capacity boundary", () => {
 
       expect(
         positionManager.getAllPositions(),
-      ).toHaveLength(0);
+      ).toHaveLength(2);
     });
 
     it("preserves pre-existing positions", () => {
-      const state = createState(90_000, 5_000);
+      const state = createState(0, 0);
       const positionManager = new PositionManager();
 
       positionManager.openPosition({
@@ -269,7 +316,16 @@ describe("Capacity boundary", () => {
         size: 90_000,
         entryPrice: 100,
         margin: 5_000,
-      });
+      }, state);
+      positionManager.openPosition({
+        id: "pre-existing-short",
+        trader: "charlie",
+        market: "BTC-PERP",
+        side: "SHORT",
+        size: 5_000,
+        entryPrice: 100,
+        margin: 5_000,
+      }, state);
 
       expect(() =>
         simulateTrade(
@@ -290,12 +346,13 @@ describe("Capacity boundary", () => {
       ).toBeDefined();
       expect(
         positionManager.getAllPositions(),
-      ).toHaveLength(1);
+      ).toHaveLength(2);
     });
 
     it("leaves the whole state object identical", () => {
-      const state = createState(90_000, 5_000);
+      const state = createState(0, 0);
       const positionManager = new PositionManager();
+      seedOpenInterest(state, positionManager, 90_000, 5_000);
 
       const snapshot = JSON.stringify(state);
 
@@ -315,18 +372,11 @@ describe("Capacity boundary", () => {
       expect(JSON.stringify(state)).toBe(snapshot);
     });
 
-    it("leaves state unchanged when the trade fails partway", () => {
-      /*
-        The trade is split into steps and the market is only
-        committed after every step succeeds. A trade that
-        passes the first steps and then hits the boundary must
-        still roll back completely.
-      */
-      const state = createState(95_000, 0);
+    it("rejects an oversized request before execution", () => {
+      const state = createState(0, 0);
       const positionManager = new PositionManager();
+      seedOpenInterest(state, positionManager, 95_000, 0);
 
-      // 5_000 of room, so a 10_000 trade fails partway through
-      // its steps rather than on the first.
       const snapshot = JSON.stringify(state);
 
       expect(() =>
@@ -346,12 +396,13 @@ describe("Capacity boundary", () => {
       expect(total(state)).toBe(95_000);
       expect(
         positionManager.getAllPositions(),
-      ).toHaveLength(0);
+      ).toHaveLength(1);
     });
 
     it("stays usable after a rejected trade", () => {
-      const state = createState(95_000, 0);
+      const state = createState(0, 0);
       const positionManager = new PositionManager();
+      seedOpenInterest(state, positionManager, 95_000, 0);
 
       expect(() =>
         simulateTrade(
@@ -387,8 +438,7 @@ describe("Capacity boundary", () => {
   /*
     A trade that exactly fills capacity must be accepted at any
     step count, including when size / steps is not exact in
-    binary floating point. The capacity gate carries a tiny
-    relative tolerance to absorb that rounding.
+    binary floating point.
   */
   describe("float precision at the boundary", () => {
     it("accepts an exact fit when the step size is not exact", () => {
@@ -396,6 +446,7 @@ describe("Capacity boundary", () => {
       for (const steps of [1, 3, 6, 7, 9, 13]) {
         const state = createState(80_000, 0);
         const positionManager = new PositionManager();
+        seedOpenInterest(state, positionManager, 80_000, 0);
 
         const result = simulateTrade(
           state,
@@ -408,19 +459,19 @@ describe("Capacity boundary", () => {
           positionManager,
         );
 
-        expect(total(state)).toBeCloseTo(100_000, 6);
-        expect(result.position.size)
-          .toBeCloseTo(20_000, 6);
+        expect(total(state)).toBe(100_000);
+        expect(result.position.size).toBe(20_000);
         expect(positionManager.getAllPositions())
-          .toHaveLength(1);
+          .toHaveLength(2);
       }
     });
 
     it("still rejects a trade that is genuinely oversized", () => {
-      // The tolerance must not let real overshoot through.
+      // Exact capacity checks reject every represented overshoot.
       for (const size of [20_001, 20_500, 25_000]) {
         const state = createState(80_000, 0);
         const positionManager = new PositionManager();
+        seedOpenInterest(state, positionManager, 80_000, 0);
 
         expect(() =>
           simulateTrade(
@@ -437,15 +488,11 @@ describe("Capacity boundary", () => {
       }
     });
 
-    it("never materially exceeds capacity", () => {
-      /*
-        Rounding at the boundary can leave open interest a few
-        ULPs above maxCapacity (~1e-11 here). What matters is
-        that the overshoot stays negligible, not that it is
-        exactly zero.
-      */
+    it("never exceeds capacity", () => {
       for (const steps of [1, 3, 6, 7, 9, 13]) {
         const state = createState(80_000, 0);
+        const positionManager = new PositionManager();
+        seedOpenInterest(state, positionManager, 80_000, 0);
 
         simulateTrade(
           state,
@@ -455,13 +502,10 @@ describe("Capacity boundary", () => {
           config,
           "trader-1",
           1_500,
-          new PositionManager(),
+          positionManager,
         );
 
-        expect(total(state)).toBeCloseTo(100_000, 6);
-        expect(total(state)).toBeLessThan(
-          100_000 + 1e-6,
-        );
+        expect(total(state)).toBe(100_000);
       }
     });
   });

@@ -1,10 +1,7 @@
 import type { MarketState } from "../market/MarketState.js";
 import type { MarketConfig } from "../config/MarketConfig.js";
 import type { PositionManager } from "../position/PositionManager.js";
-
-import {
-  getCurrentAmmPrice,
-} from "../amm/Pricing.js";
+import type { LiquidityVault } from "../liquidity/LiquidityVault.js";
 
 import {
   getRemainingCapacity,
@@ -18,11 +15,13 @@ import {
   markPosition,
   type PositionMark,
 } from "./PositionMark.js";
+import { getCurrentAmmPrice } from "../amm/Pricing.js";
 
 import {
-  liquidatePosition,
+  settleAndLiquidatePositionsAtCurrentMark,
   type LiquidationResult,
-} from "./LiquidationEngine.js";
+} from "../settlement/SettleAndLiquidatePosition.js";
+import { getSettlementPrice } from "../settlement/SettlementPrice.js";
 
 
 export interface CapacitySnapshot {
@@ -75,10 +74,7 @@ function snapshot(
       state,
       config,
     ),
-    markPrice: getCurrentAmmPrice(
-      state,
-      config,
-    ),
+    markPrice: getCurrentAmmPrice(state, config),
   };
 }
 
@@ -115,6 +111,7 @@ export function runLiquidationSweep(
   state: MarketState,
   config: MarketConfig,
   positionManager: PositionManager,
+  vault: LiquidityVault,
   maintenanceMargin: number =
     config.maintenanceMargin ??
     DEFAULT_MAINTENANCE_MARGIN,
@@ -122,12 +119,6 @@ export function runLiquidationSweep(
 
 
   const capacityBefore = snapshot(
-    state,
-    config,
-  );
-
-
-  const markPrice = getCurrentAmmPrice(
     state,
     config,
   );
@@ -142,51 +133,36 @@ export function runLiquidationSweep(
 
 
   const marks = openPositions.map(
-    position =>
-      markPosition(
+    position => {
+      const markPrice = getSettlementPrice(
+        state,
+        config,
+        position,
+      );
+      return markPosition(
         position,
         markPrice,
         maintenanceMargin,
-      ),
+      );
+    },
   );
 
 
   const healthBefore = healthRatio(marks);
 
 
-  const liquidations: LiquidationResult[] = [];
-
-
-  for (const mark of marks) {
-
-    const position =
-      positionManager.getPosition(
-        mark.positionId,
-      );
-
-    /*
-      A position can be removed by an earlier liquidation
-      only in the same-trader batch case, so re-check.
-    */
-    if (!position) {
-      continue;
-    }
-
-    if (!mark.liquidatable) {
-      continue;
-    }
-
-    liquidations.push(
-      liquidatePosition(
-        position,
-        markPrice,
-        state,
-        positionManager,
-        maintenanceMargin,
-      ),
+  const liquidatableIds = marks
+    .filter(mark => mark.liquidatable)
+    .map(mark => mark.positionId);
+  const liquidations: LiquidationResult[] =
+    settleAndLiquidatePositionsAtCurrentMark(
+      liquidatableIds,
+      state,
+      config,
+      positionManager,
+      vault,
+      maintenanceMargin,
     );
-
-  }
 
 
   const releasedOpenInterest =
@@ -211,17 +187,23 @@ export function runLiquidationSweep(
         position.market === state.symbol,
     )
     .map(
-      position =>
-        markPosition(
+      position => {
+        const markPrice = getSettlementPrice(
+          state,
+          config,
           position,
-          capacityAfter.markPrice,
+        );
+        return markPosition(
+          position,
+          markPrice,
           maintenanceMargin,
-        ),
+        );
+      },
     );
 
 
   return {
-    markPrice,
+    markPrice: capacityBefore.markPrice,
     marks: survivingMarks,
     liquidations,
     releasedOpenInterest,

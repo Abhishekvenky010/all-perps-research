@@ -1,10 +1,10 @@
 export interface MarketState {
   symbol: string;
 
-  // Current oracle reference price
+  // Latest validated reference observation, when supplied through the oracle service.
   indexPrice: number;
 
-  // 15-minute AMM pool TWAP
+  // 15-minute arithmetic TWAP of reference observations.
   ammTwapPrice: number;
 
   // Total open long positions

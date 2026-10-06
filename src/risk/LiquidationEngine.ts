@@ -1,114 +1,34 @@
-import type { Position } from "../position/Position.js";
 import type { MarketState } from "../market/MarketState.js";
-
-import {
-  markPosition,
-} from "./PositionMark.js";
-
-import {
-  closePosition,
-} from "../position/ClosePosition.js";
-
+import type { MarketConfig } from "../config/MarketConfig.js";
+import type { Position } from "../position/Position.js";
 import type { PositionManager } from "../position/PositionManager.js";
+import type { LiquidityVault } from "../liquidity/LiquidityVault.js";
+import {
+  settleAndLiquidatePosition,
+  type SettleAndLiquidateResult,
+} from "../settlement/SettleAndLiquidatePosition.js";
 
-
-export interface LiquidationResult {
-
-  positionId: string;
-
-  trader: string;
-
-  markPrice: number;
-
-  pnl: number;
-
-  marginRatio: number;
-
-  releasedOpenInterest: number;
-
-  realizedPnL: number;
-
-  remainingMargin: number;
-
-  closed: boolean;
-
-}
-
-
+export type LiquidationResult = SettleAndLiquidateResult;
 
 export function liquidatePosition(
-
-  position: Position,
-
-  currentPrice: number,
-
+  position: Pick<Position, "id">,
   market: MarketState,
-
+  config: MarketConfig,
   positionManager: PositionManager,
-
+  vault: LiquidityVault,
   maintenanceMargin: number,
-
 ): LiquidationResult {
-
-
-  const mark =
-    markPosition(
-      position,
-      currentPrice,
-      maintenanceMargin,
-    );
-
-
-  if (!mark.liquidatable) {
-
-    throw new Error(
-      "POSITION_HEALTHY",
-    );
-
+  const canonicalPosition = positionManager.getPosition(position.id);
+  if (!canonicalPosition) {
+    throw new Error("POSITION_NOT_FOUND");
   }
 
-
-
-  /*
-    Release market exposure and remove the position.
-
-    closePosition is the single place where open interest
-    is decremented, so a liquidation recovers exactly the
-    same capacity as a voluntary close.
-  */
-
-  closePosition(
-    position.id,
+  return settleAndLiquidatePosition(
+    canonicalPosition.id,
     market,
+    config,
     positionManager,
+    vault,
+    maintenanceMargin,
   );
-
-
-
-  return {
-
-    positionId: position.id,
-
-    trader: position.trader,
-
-    markPrice: mark.markPrice,
-
-    pnl: mark.pnl,
-
-    marginRatio: mark.marginRatio,
-
-    releasedOpenInterest: position.size,
-
-    realizedPnL: mark.pnl,
-
-    remainingMargin:
-      Math.max(
-        mark.equity,
-        0,
-      ),
-
-    closed: true,
-
-  };
-
 }

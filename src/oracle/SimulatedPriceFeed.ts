@@ -1,37 +1,25 @@
 
 import type { PriceObservation } from "./TWAPOracle.js";
+import { recordPriceObservation } from "./TWAPOracle.js";
+import type { ReferencePriceSource } from "./ReferencePriceSource.js";
 
-export class SimulatedPriceFeed {
+// Test/research adapter only; it is not an authenticated external price source.
+export class SimulatedPriceFeed implements ReferencePriceSource {
   private observations: PriceObservation[] = [];
 
-  // Record a new underlying asset price.
   recordPrice(price: number, timestamp: number): void {
-    if (
-      !Number.isFinite(price) ||
-      price <= 0 ||
-      !Number.isFinite(timestamp)
-    ) {
-      throw new Error("INVALID_PRICE_OBSERVATION");
-    }
-
-    const last = this.observations.at(-1);
-
-    if (last && timestamp < last.timestamp) {
-      throw new Error("TIMESTAMP_CANNOT_GO_BACKWARD");
-    }
-
-    const observation = { price, timestamp };
-
-    if (last && timestamp === last.timestamp) {
-      this.observations[this.observations.length - 1] =
-        observation;
-    } else {
-      this.observations.push(observation);
-    }
+    this.observations = recordPriceObservation(this.observations, {
+      price,
+      timestamp,
+    });
   }
 
-  // Return a copy of the recorded observations.
   getObservations(): PriceObservation[] {
     return [...this.observations];
+  }
+
+  getLatestObservation(): PriceObservation | undefined {
+    const latest = this.observations.at(-1);
+    return latest ? { ...latest } : undefined;
   }
 }

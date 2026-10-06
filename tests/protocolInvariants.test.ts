@@ -9,6 +9,7 @@ import { getAverageExecutionPrice } from "../src/amm/Pricing.js";
 import { getRemainingCapacity } from "../src/amm/Capacity.js";
 import { calculateUnrealizedPnL } from "../src/risk/PnL.js";
 import { runLiquidationSweep } from "../src/risk/LiquidationSweep.js";
+import { createLiquidityVault } from "../src/liquidity/LiquidityVault.js";
 import { calculateTWAP, updateAmmTwap, type PriceObservation } from "../src/oracle/TWAPOracle.js";
 
 const config: MarketConfig = {
@@ -43,7 +44,13 @@ describe("Protocol-level invariants", () => {
     const short = simulateTrade(state, "SHORT", 10_000, 5, config, "bob", 1_000, pm);
     expect(state.longOpenInterest).toBe(20_000); expect(state.shortOpenInterest).toBe(10_000);
     expect(pm.getAllPositions().reduce((n, p) => n + p.size, 0)).toBe(30_000);
-    closePosition(long.position.id, state, pm);
+    closePosition(
+      long.position.id,
+      state,
+      config,
+      pm,
+      createLiquidityVault(50_000),
+    );
     expect(state.longOpenInterest).toBe(0); expect(state.shortOpenInterest).toBe(10_000);
     expect(pm.getPosition(long.position.id)).toBeUndefined();
     expect(pm.getPosition(short.position.id)).toBeDefined();
@@ -57,10 +64,15 @@ describe("Protocol-level invariants", () => {
   });
 
   it("liquidation releases the exact position OI", () => {
-    const state = market({ longOpenInterest: 10_000, ammTwapPrice: 45 });
+    const state = market({ ammTwapPrice: 45 });
     const pm = new PositionManager();
-    pm.openPosition({ id: "liq", trader: "alice", market: "BTC-PERP", side: "LONG", size: 10_000, entryPrice: 100, margin: 1_000 });
-    const result = runLiquidationSweep(state, config, pm);
+    pm.openPosition({ id: "liq", trader: "alice", market: "BTC-PERP", side: "LONG", size: 10_000, entryPrice: 100, margin: 1_000 }, state);
+    const result = runLiquidationSweep(
+      state,
+      config,
+      pm,
+      createLiquidityVault(50_000),
+    );
     expect(result.liquidations).toHaveLength(1);
     expect(result.releasedOpenInterest).toBe(10_000);
     expect(state.longOpenInterest).toBe(0);
@@ -76,4 +88,3 @@ describe("Protocol-level invariants", () => {
     expect(updateAmmTwap(market(), observations, 1350).ammTwapPrice).toBeCloseTo(150, 10);
   });
 });
-

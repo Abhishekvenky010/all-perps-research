@@ -11,6 +11,7 @@ import {
 import {
   PositionManager,
 } from "../src/position/PositionManager.js";
+import { createMarketConfig } from "./helpers/marketConfig.js";
 
 describe("Settle and liquidate position", () => {
   it("settles a liquidated LONG loss and closes it", () => {
@@ -19,8 +20,8 @@ describe("Settle and liquidate position", () => {
     const market = {
       symbol: "BTC-PERP",
       indexPrice: 100,
-      ammTwapPrice: 100,
-      longOpenInterest: 100,
+      ammTwapPrice: 90,
+      longOpenInterest: 0,
       shortOpenInterest: 0,
     };
 
@@ -36,12 +37,12 @@ describe("Settle and liquidate position", () => {
       margin: 1_000,
     };
 
-    positionManager.openPosition(position);
+    positionManager.openPosition(position, market);
 
     const result = settleAndLiquidatePosition(
       position.id,
-      90,
       market,
+      createMarketConfig(),
       positionManager,
       vault,
       0.05,
@@ -61,6 +62,20 @@ describe("Settle and liquidate position", () => {
     expect(
       positionManager.getPosition(position.id),
     ).toBeUndefined();
+    expect(positionManager.getPositionLifecycle(position.id)).toBe("LIQUIDATED");
+
+    expect(() =>
+      settleAndLiquidatePosition(
+        position.id,
+        market,
+        createMarketConfig(),
+        positionManager,
+        vault,
+        0.05,
+      ),
+    ).toThrow("POSITION_NOT_FOUND");
+    expect(vault.traderPnL).toBe(-1_000);
+    expect(market.longOpenInterest).toBe(0);
   });
 
   it("preserves remaining margin after liquidation", () => {
@@ -69,8 +84,8 @@ describe("Settle and liquidate position", () => {
     const market = {
       symbol: "BTC-PERP",
       indexPrice: 100,
-      ammTwapPrice: 100,
-      longOpenInterest: 100,
+      ammTwapPrice: 90.4,
+      longOpenInterest: 0,
       shortOpenInterest: 0,
     };
 
@@ -86,12 +101,12 @@ describe("Settle and liquidate position", () => {
       margin: 1_000,
     };
 
-    positionManager.openPosition(position);
+    positionManager.openPosition(position, market);
 
     const result = settleAndLiquidatePosition(
       position.id,
-      90.4,
       market,
+      createMarketConfig(),
       positionManager,
       vault,
       0.5,
@@ -118,7 +133,7 @@ describe("Settle and liquidate position", () => {
       symbol: "BTC-PERP",
       indexPrice: 100,
       ammTwapPrice: 100,
-      longOpenInterest: 100,
+      longOpenInterest: 0,
       shortOpenInterest: 0,
     };
 
@@ -134,13 +149,13 @@ describe("Settle and liquidate position", () => {
       margin: 1_000,
     };
 
-    positionManager.openPosition(position);
+    positionManager.openPosition(position, market);
 
     expect(() =>
       settleAndLiquidatePosition(
         position.id,
-        99,
         market,
+        createMarketConfig(),
         positionManager,
         vault,
         0.05,

@@ -12,14 +12,23 @@ export function isLiquidatable(
   pnl: number,
   maintenanceMargin: number,
 ): boolean {
+  return isMarginRatioLiquidatable(
+    calculateMarginRatio(position, pnl),
+    maintenanceMargin,
+  );
+}
 
+export function isMarginRatioLiquidatable(
+  marginRatio: number,
+  maintenanceMargin: number,
+): boolean {
+  if (!Number.isFinite(marginRatio)) {
+    throw new Error("INVALID_MARGIN_RATIO");
+  }
 
-  const marginRatio =
-    calculateMarginRatio(
-      position,
-      pnl,
-    );
-
+  if (!Number.isFinite(maintenanceMargin) || maintenanceMargin < 0) {
+    throw new Error("INVALID_MAINTENANCE_MARGIN");
+  }
 
   return marginRatio < maintenanceMargin;
 

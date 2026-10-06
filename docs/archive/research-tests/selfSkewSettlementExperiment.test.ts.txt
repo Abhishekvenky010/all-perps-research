@@ -1,0 +1,123 @@
+import { describe, expect, it } from "vitest";
+import {
+  getCounterfactualSettlementMark,
+  runSelfSkewSettlementScenario,
+} from "../experiments/selfSkewSettlementExperiment.js";
+import type { MarketConfig } from "../src/config/MarketConfig.js";
+import type { MarketState } from "../src/market/MarketState.js";
+import type { Position } from "../src/position/Position.js";
+
+const config: MarketConfig = {
+  symbol: "BTC-PERP",
+  maxCapacity: 100_000,
+  skewCoefficient: 0.2,
+  capacityCoefficient: 0.05,
+  maxLeverage: 10,
+};
+
+describe("historical self-skew settlement counterfactual", () => {
+  it("removes only the supplied position exposure without mutating inputs", () => {
+    const market: MarketState = {
+      symbol: "BTC-PERP",
+      indexPrice: 100,
+      ammTwapPrice: 100,
+      longOpenInterest: 60_000,
+      shortOpenInterest: 10_000,
+    };
+    const position: Position = {
+      id: "target-long",
+      trader: "alice",
+      market: "BTC-PERP",
+      side: "LONG",
+      size: 30_000,
+      entryPrice: 100,
+      margin: 30_000,
+    };
+    const marketBefore = { ...market };
+    const positionBefore = { ...position };
+
+    const mark = getCounterfactualSettlementMark(
+      market,
+      position,
+      config,
+    );
+
+    expect(mark).toBe(104);
+    expect(market).toEqual(marketBefore);
+    expect(position).toEqual(positionBefore);
+  });
+
+  it("confirms self-skew raises Long marks and lowers Short marks", () => {
+    const long = runSelfSkewSettlementScenario({
+      utilization: 0.5,
+      side: "LONG",
+      vaultBacking: 10_000_000,
+    });
+    const short = runSelfSkewSettlementScenario({
+      utilization: 0.5,
+      side: "SHORT",
+      vaultBacking: 10_000_000,
+    });
+
+    expect(long.models.A.settlementMark).toBeCloseTo(110, 12);
+    expect(long.models.B.settlementMark).toBe(100);
+    expect(long.models.A.pnl - long.models.B.pnl).toBeCloseTo(
+      500_000,
+      8,
+    );
+
+    expect(short.models.A.settlementMark).toBeCloseTo(90, 12);
+    expect(short.models.B.settlementMark).toBe(100);
+    expect(short.models.A.pnl - short.models.B.pnl).toBeCloseTo(
+      500_000,
+      8,
+    );
+    expect(short.models.A.pnl).toBeGreaterThan(0);
+    expect(short.models.B.pnl).toBeLessThan(0);
+  });
+
+  it("makes Models B and C identical when no other OI remains", () => {
+    const result = runSelfSkewSettlementScenario({
+      utilization: 0.5,
+      side: "LONG",
+      vaultBacking: 10_000_000,
+    });
+
+    expect(result.models.B.settlementMark).toBe(
+      result.models.C.settlementMark,
+    );
+    expect(result.models.B.pnl).toBe(result.models.C.pnl);
+  });
+
+  it("eliminates the A/B/C mark difference at zero skew coefficient", () => {
+    const result = runSelfSkewSettlementScenario({
+      utilization: 0.5,
+      side: "LONG",
+      skewCoefficient: 0,
+      vaultBacking: 10_000_000,
+    });
+
+    expect(result.models.A.settlementMark).toBe(100);
+    expect(result.models.B.settlementMark).toBe(100);
+    expect(result.models.C.settlementMark).toBe(100);
+    expect(result.models.A.pnl).toBe(result.models.B.pnl);
+  });
+
+  it("shows the own-skew PnL increment is independent of capacity coefficient", () => {
+    const results = [0, 0.05, 0.1, 0.2].map(capacityCoefficient =>
+      runSelfSkewSettlementScenario({
+        utilization: 0.5,
+        side: "LONG",
+        capacityCoefficient,
+        vaultBacking: 10_000_000,
+      }),
+    );
+
+    for (const result of results) {
+      expect(result.models.A.pnl - result.models.B.pnl).toBeCloseTo(
+        500_000,
+        8,
+      );
+    }
+  });
+});

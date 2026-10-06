@@ -4,11 +4,11 @@ import type { MarketState } from "../src/market/MarketState.js";
 import type { MarketConfig } from "../src/config/MarketConfig.js";
 import type { PriceObservation } from "../src/oracle/TWAPOracle.js";
 
-import { recordAmmPriceObservation } from "../src/oracle/AmmPriceService.js";
+import { recordSimulatedProtocolMarkObservation } from "../src/oracle/SimulatedProtocolMarkObservation.js";
 import { updateAmmTwap } from "../src/oracle/TWAPOracle.js";
 
-describe("Oracle ↔ AMM dynamics", () => {
-  it("updates TWAP as AMM price changes with market skew", () => {
+describe("Simulated protocol mark feedback dynamics", () => {
+  it("updates simulated TWAP as protocol mark changes with market skew", () => {
     const config: MarketConfig = {
       symbol: "BTC-PERP",
       maxCapacity: 100_000,
@@ -28,7 +28,7 @@ describe("Oracle ↔ AMM dynamics", () => {
     let observations: PriceObservation[] = [];
 
     // t = 0: balanced market
-    observations = recordAmmPriceObservation(
+    observations = recordSimulatedProtocolMarkObservation(
       observations,
       state,
       config,
@@ -42,7 +42,7 @@ describe("Oracle ↔ AMM dynamics", () => {
       shortOpenInterest: 10_000,
     };
 
-    observations = recordAmmPriceObservation(
+    observations = recordSimulatedProtocolMarkObservation(
       observations,
       state,
       config,
@@ -56,7 +56,7 @@ describe("Oracle ↔ AMM dynamics", () => {
       shortOpenInterest: 10_000,
     };
 
-    observations = recordAmmPriceObservation(
+    observations = recordSimulatedProtocolMarkObservation(
       observations,
       state,
       config,
@@ -70,7 +70,7 @@ describe("Oracle ↔ AMM dynamics", () => {
       shortOpenInterest: 10_000,
     };
 
-    observations = recordAmmPriceObservation(
+    observations = recordSimulatedProtocolMarkObservation(
       observations,
       state,
       config,

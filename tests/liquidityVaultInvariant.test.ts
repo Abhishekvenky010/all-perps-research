@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   addPremium,
+  commitTraderPnL,
   createLiquidityVault,
   depositLP,
   getLpEquity,
@@ -25,6 +26,32 @@ describe("LiquidityVault accounting invariants", () => {
 
     expect(vault.availableCapital).toBe(48_000);
     expect(getLpEquity(vault)).toBe(48_000);
+  });
+
+  it("rejects trader profit above available backing without changing the vault", () => {
+    const vault = createLiquidityVault(50_000);
+    const before = { ...vault };
+
+    expect(() => recordTraderPnL(vault, 50_001))
+      .toThrow("INSUFFICIENT_LP_BACKING");
+
+    expect(vault).toEqual(before);
+  });
+
+  it("does not allow an invalid prepared PnL to bypass the backing guard", () => {
+    const vault = createLiquidityVault(50_000);
+    const before = { ...vault };
+
+    expect(() =>
+      commitTraderPnL(vault, {
+        previousTraderPnL: 0,
+        previousAvailableCapital: 50_000,
+        traderPnL: 50_001,
+        availableCapital: -1,
+      }),
+    ).toThrow("INSUFFICIENT_LP_BACKING");
+
+    expect(vault).toEqual(before);
   });
 
   it("keeps available capital equal to LP equity after trader loss", () => {

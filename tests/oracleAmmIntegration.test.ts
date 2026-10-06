@@ -3,11 +3,11 @@ import { describe, expect, it } from "vitest";
 import type { MarketState } from "../src/market/MarketState.js";
 import type { MarketConfig } from "../src/config/MarketConfig.js";
 import { SimulatedPriceFeed } from "../src/oracle/SimulatedPriceFeed.js";
-import { recordAmmPriceObservation } from "../src/oracle/AmmPriceService.js";
+import { recordSimulatedProtocolMarkObservation } from "../src/oracle/SimulatedProtocolMarkObservation.js";
 import { updateAmmTwap } from "../src/oracle/TWAPOracle.js";
 
-describe("Oracle ↔ AMM integration", () => {
-  it("builds a TWAP from AMM price observations", () => {
+describe("Simulated protocol mark feedback experiment", () => {
+  it("builds a simulated TWAP from protocol mark observations", () => {
     const config: MarketConfig = {
       symbol: "BTC-PERP",
       maxCapacity: 100_000,
@@ -28,28 +28,28 @@ describe("Oracle ↔ AMM integration", () => {
 
     let observations = feed.getObservations();
 
-    observations = recordAmmPriceObservation(
+    observations = recordSimulatedProtocolMarkObservation(
       observations,
       state,
       config,
       0,
     );
 
-    observations = recordAmmPriceObservation(
+    observations = recordSimulatedProtocolMarkObservation(
       observations,
       state,
       config,
       300,
     );
 
-    observations = recordAmmPriceObservation(
+    observations = recordSimulatedProtocolMarkObservation(
       observations,
       state,
       config,
       600,
     );
 
-    observations = recordAmmPriceObservation(
+    observations = recordSimulatedProtocolMarkObservation(
       observations,
       state,
       config,

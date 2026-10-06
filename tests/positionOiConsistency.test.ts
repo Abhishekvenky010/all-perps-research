@@ -6,14 +6,21 @@ import type { Position } from "../src/position/Position.js";
 import { PositionManager } from "../src/position/PositionManager.js";
 import { closePosition } from "../src/position/ClosePosition.js";
 import { liquidatePosition } from "../src/risk/LiquidationEngine.js";
+import { createLiquidityVault } from "../src/liquidity/LiquidityVault.js";
+import { createMarketConfig } from "./helpers/marketConfig.js";
 
 function calculateOpenInterest(
-  positions: Position[],
+  positions: readonly Position[],
+  marketSymbol: string,
 ) {
   let longOpenInterest = 0;
   let shortOpenInterest = 0;
 
   for (const position of positions) {
+    if (position.market !== marketSymbol) {
+      continue;
+    }
+
     if (position.side === "LONG") {
       longOpenInterest += position.size;
     } else {
@@ -25,6 +32,19 @@ function calculateOpenInterest(
     longOpenInterest,
     shortOpenInterest,
   };
+}
+
+function expectOiConserved(
+  market: MarketState,
+  positionManager: PositionManager,
+) {
+  const calculated = calculateOpenInterest(
+    positionManager.getAllPositions(),
+    market.symbol,
+  );
+
+  expect(calculated.longOpenInterest).toBe(market.longOpenInterest);
+  expect(calculated.shortOpenInterest).toBe(market.shortOpenInterest);
 }
 
 describe("Position / Market OI consistency", () => {
@@ -69,15 +89,14 @@ describe("Position / Market OI consistency", () => {
       margin: 1_000,
     };
 
-    positionManager.openPosition(long1);
-    positionManager.openPosition(long2);
-    positionManager.openPosition(short1);
+    positionManager.openPosition(long1, market);
+    positionManager.openPosition(long2, market);
+    positionManager.openPosition(short1, market);
 
-    market.longOpenInterest = 30_000;
-    market.shortOpenInterest = 5_000;
-
+    expectOiConserved(market, positionManager);
     let calculated = calculateOpenInterest(
       positionManager.getAllPositions(),
+      market.symbol,
     );
 
     expect(calculated.longOpenInterest).toBe(
@@ -91,11 +110,15 @@ describe("Position / Market OI consistency", () => {
     closePosition(
       long1.id,
       market,
+      createMarketConfig(),
       positionManager,
+      createLiquidityVault(50_000),
     );
 
+    expectOiConserved(market, positionManager);
     calculated = calculateOpenInterest(
       positionManager.getAllPositions(),
+      market.symbol,
     );
 
     expect(calculated.longOpenInterest).toBe(
@@ -108,13 +131,24 @@ describe("Position / Market OI consistency", () => {
 
     expect(market.longOpenInterest).toBe(20_000);
     expect(market.shortOpenInterest).toBe(5_000);
+    expect(positionManager.getPositionLifecycle(long1.id)).toBe("SETTLED");
+    expect(() =>
+      closePosition(
+        long1.id,
+        market,
+        createMarketConfig(),
+        positionManager,
+        createLiquidityVault(50_000),
+      ),
+    ).toThrow("POSITION_NOT_FOUND");
+    expectOiConserved(market, positionManager);
   });
   it("keeps OI consistent after liquidation", () => {
   const market: MarketState = {
     symbol: "BTC-PERP",
     indexPrice: 100,
-    ammTwapPrice: 100,
-    longOpenInterest: 100,
+    ammTwapPrice: 99,
+    longOpenInterest: 0,
     shortOpenInterest: 0,
   };
 
@@ -130,17 +164,21 @@ describe("Position / Market OI consistency", () => {
     margin: 100,
   };
 
-  positionManager.openPosition(position);
+  positionManager.openPosition(position, market);
+  expectOiConserved(market, positionManager);
 
   const result = liquidatePosition(
     position,
-    99,
     market,
+    createMarketConfig(),
     positionManager,
+    createLiquidityVault(50_000),
     0.05,
   );
 
   expect(result.closed).toBe(true);
+  expect(positionManager.getPositionLifecycle(position.id)).toBe("LIQUIDATED");
+  expectOiConserved(market, positionManager);
 
   expect(
     positionManager.getPosition(position.id),
@@ -150,6 +188,7 @@ describe("Position / Market OI consistency", () => {
 
   const calculated = calculateOpenInterest(
     positionManager.getAllPositions(),
+    market.symbol,
   );
 
   expect(calculated.longOpenInterest).toBe(
@@ -159,5 +198,44 @@ describe("Position / Market OI consistency", () => {
   expect(calculated.shortOpenInterest).toBe(
     market.shortOpenInterest,
   );
+});
+
+describe("Position close atomicity", () => {
+  it("does not release more OI than is open or terminalize the position", () => {
+    const market: MarketState = {
+      symbol: "BTC-PERP",
+      indexPrice: 100,
+      ammTwapPrice: 100,
+      longOpenInterest: 0,
+      shortOpenInterest: 0,
+    };
+    const positionManager = new PositionManager();
+    const position: Position = {
+      id: "over-release",
+      trader: "alice",
+      market: "BTC-PERP",
+      side: "LONG",
+      size: 100,
+      entryPrice: 100,
+      margin: 20,
+    };
+
+    positionManager.openPosition(position, market);
+    market.longOpenInterest = 50;
+
+    expect(() =>
+      closePosition(
+        position.id,
+        market,
+        createMarketConfig(),
+        positionManager,
+        createLiquidityVault(50_000),
+      ),
+    ).toThrow("POSITION_OPEN_INTEREST_MISMATCH");
+
+    expect(positionManager.getPosition(position.id)).toEqual(position);
+    expect(positionManager.getPositionLifecycle(position.id)).toBe("OPEN");
+    expect(market.longOpenInterest).toBe(50);
+  });
 });
 });

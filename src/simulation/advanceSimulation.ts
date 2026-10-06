@@ -1,7 +1,9 @@
 import type { SimulationEnvironment } from "./SimulationEnvironment.js";
-import { recordAmmPriceObservation } from "../oracle/AmmPriceService.js";
+import { recordSimulatedProtocolMarkObservation } from "../oracle/SimulatedProtocolMarkObservation.js";
 import { updateAmmTwap } from "../oracle/TWAPOracle.js";
 
+// Research simulation: intentionally evolves observations from the
+// protocol-derived mark; production reference ingestion uses another service.
 export function advanceSimulation(
   environment: SimulationEnvironment,
   seconds: number,
@@ -12,7 +14,7 @@ export function advanceSimulation(
 
   const timestamp = environment.timestamp + seconds;
 
-  const observations = recordAmmPriceObservation(
+  const observations = recordSimulatedProtocolMarkObservation(
     environment.priceFeed.getObservations(),
     environment.market,
     environment.config,

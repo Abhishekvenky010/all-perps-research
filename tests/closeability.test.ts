@@ -3,7 +3,8 @@ import { describe, expect, it } from "vitest";
 
 import { simulateTrade } from "../src/simulation/TradeSimulator.js";
 import { PositionManager } from "../src/position/PositionManager.js";
-import { closePosition } from "../src/position/ClosePosition.js";
+import { closePosition as settleClose } from "../src/position/ClosePosition.js";
+import { createLiquidityVault } from "../src/liquidity/LiquidityVault.js";
 
 import type { MarketState } from "../src/market/MarketState.js";
 import type { MarketConfig } from "../src/config/MarketConfig.js";
@@ -15,6 +16,21 @@ const config: MarketConfig = {
   capacityCoefficient: 0.05,
   maxLeverage: 10,
 };
+
+function closePosition(
+  positionId: string,
+  market: MarketState,
+  positionManager: PositionManager,
+  vaultBacking = 100_000,
+) {
+  return settleClose(
+    positionId,
+    market,
+    config,
+    positionManager,
+    createLiquidityVault(vaultBacking),
+  );
+}
 
 function createMarket(
   overrides: Partial<MarketState> = {},
@@ -36,6 +52,36 @@ function openPosition(
   size: number,
   trader: string,
 ) {
+  if (positionManager.getAllPositions().length === 0) {
+    const longSize = market.longOpenInterest;
+    const shortSize = market.shortOpenInterest;
+    market.longOpenInterest = 0;
+    market.shortOpenInterest = 0;
+
+    if (longSize > 0) {
+      positionManager.openPosition({
+        id: "fixture-existing-long",
+        trader: "existing-long",
+        market: market.symbol,
+        side: "LONG",
+        size: longSize,
+        entryPrice: market.indexPrice,
+        margin: longSize,
+      }, market);
+    }
+    if (shortSize > 0) {
+      positionManager.openPosition({
+        id: "fixture-existing-short",
+        trader: "existing-short",
+        market: market.symbol,
+        side: "SHORT",
+        size: shortSize,
+        entryPrice: market.indexPrice,
+        margin: shortSize,
+      }, market);
+    }
+  }
+
   return simulateTrade(
     market,
     side,
@@ -70,7 +116,7 @@ describe("Closeability", () => {
       positionManager,
     );
 
-    expect(closed.id).toBe(trade.position.id);
+    expect(closed.positionId).toBe(trade.position.id);
     expect(market.longOpenInterest).toBe(0);
     expect(market.shortOpenInterest).toBe(0);
     expect(positionManager.getPosition(trade.position.id)).toBeUndefined();
@@ -122,6 +168,7 @@ describe("Closeability", () => {
       trade.position.id,
       market,
       positionManager,
+      1_000_000,
     );
 
     expect(market.longOpenInterest).toBe(70_000);
@@ -474,6 +521,7 @@ describe("Closeability", () => {
       trade.position.id,
       market,
       positionManager,
+      1_000_000,
     );
 
     expect(market.longOpenInterest).toBe(0);
@@ -518,4 +566,3 @@ describe("Closeability", () => {
     ).toBe(96_000);
   });
 });
-

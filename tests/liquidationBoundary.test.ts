@@ -21,6 +21,8 @@ import {
 
 import { PositionManager } from "../src/position/PositionManager.js";
 import type { MarketState } from "../src/market/MarketState.js";
+import { createLiquidityVault } from "../src/liquidity/LiquidityVault.js";
+import { createMarketConfig } from "./helpers/marketConfig.js";
 
 
 const MAINTENANCE_MARGIN = 0.05;
@@ -49,7 +51,7 @@ function makeState(
     symbol: "BTC-PERP",
     indexPrice: 100,
     ammTwapPrice: 100,
-    longOpenInterest: 100_000,
+    longOpenInterest: 0,
     shortOpenInterest: 0,
     ...overrides,
   };
@@ -105,16 +107,15 @@ describe("Liquidation boundary", () => {
   });
 
   it("reaches the same boundary through PnL", () => {
-    // margin 5, pnl 0 -> equity 5. Instead take margin 0 and
-    // add exactly 5 of PnL to land on the same equity.
-    const position = makePosition({ margin: 0 });
+    // margin 1 plus 4 PnL -> equity 5 on size 100.
+    const position = makePosition({ margin: 1 });
 
     expect(
-      calculateMarginRatio(position, 5),
+      calculateMarginRatio(position, 4),
     ).toBe(MAINTENANCE_MARGIN);
 
     expect(
-      isLiquidatable(position, 5, MAINTENANCE_MARGIN),
+      isLiquidatable(position, 4, MAINTENANCE_MARGIN),
     ).toBe(false);
   });
 
@@ -123,15 +124,16 @@ describe("Liquidation boundary", () => {
     const state = makeState();
     const positionManager = new PositionManager();
 
-    positionManager.openPosition(position);
+    positionManager.openPosition(position, state);
 
     // Mark at entry, so PnL is 0 and the ratio is exactly 0.05.
     expect(() =>
       liquidatePosition(
         position,
-        100,
         state,
+        createMarketConfig(),
         positionManager,
+        createLiquidityVault(50_000),
         MAINTENANCE_MARGIN,
       ),
     ).toThrow("POSITION_HEALTHY");
@@ -141,7 +143,7 @@ describe("Liquidation boundary", () => {
       positionManager.getPosition("pos-1"),
     ).toBeDefined();
 
-    expect(state.longOpenInterest).toBe(100_000);
+    expect(state.longOpenInterest).toBe(100);
   });
 
   it("marks the exact boundary as not liquidatable", () => {
@@ -154,6 +156,27 @@ describe("Liquidation boundary", () => {
     expect(mark.marginRatio).toBe(MAINTENANCE_MARGIN);
     expect(mark.equity).toBe(5);
     expect(mark.liquidatable).toBe(false);
+  });
+
+  it("calculates a read-only LONG mark from the supplied protocol price", () => {
+    const position = makePosition({ side: "LONG", margin: 10 });
+    const before = { ...position };
+
+    const mark = markPosition(position, 99, MAINTENANCE_MARGIN);
+
+    expect(mark.pnl).toBe((99 - 100) * 100);
+    expect(mark.equity).toBe(10 + mark.pnl);
+    expect(mark.marginRatio).toBe(mark.equity / position.size);
+    expect(position).toEqual(before);
+  });
+
+  it("calculates SHORT mark PnL symmetrically", () => {
+    const position = makePosition({ side: "SHORT", margin: 10 });
+    const mark = markPosition(position, 101, MAINTENANCE_MARGIN);
+
+    expect(mark.pnl).toBe((100 - 101) * 100);
+    expect(mark.equity).toBe(10 + mark.pnl);
+    expect(mark.marginRatio).toBe(mark.equity / position.size);
   });
 
 
@@ -191,13 +214,14 @@ describe("Liquidation boundary", () => {
     const state = makeState();
     const positionManager = new PositionManager();
 
-    positionManager.openPosition(position);
+    positionManager.openPosition(position, state);
 
     const result = liquidatePosition(
       position,
-      100,
       state,
+      createMarketConfig(),
       positionManager,
+      createLiquidityVault(50_000),
       MAINTENANCE_MARGIN,
     );
 
@@ -302,16 +326,13 @@ describe("Liquidation boundary", () => {
 
 
   /*
-    Known limitation, consistent with the float tolerance added
-    to the capacity gate.
+    This is a separate floating-point boundary limitation in
+    liquidation math; capacity checks are exact.
 
-    A margin ratio derived from a price move is computed as
-    equity = margin + (mark - entry) * size. Solving that for
-    the exact boundary price yields 100.02499999999999 rather
-    than 100.025, which puts the ratio just below the
-    threshold. A position sitting exactly on that boundary is
-    therefore liquidated, because the boundary is not reachable
-    from a price input.
+    A mark infinitesimally below the solved boundary is
+    liquidatable according to the exact computed ratio. The
+    protocol intentionally does not add an epsilon or change the
+    strict comparison.
 
     Positions defined by margin (as above) are unaffected:
     size 100 with margin 5 gives exactly 0.05.
@@ -320,11 +341,11 @@ describe("Liquidation boundary", () => {
     it("liquidates at the boundary price derived from entry", () => {
       const size = 100;
       const entryPrice = 100;
-      const margin = 0;
+      const margin = 1;
 
-      // ratio = margin/size + (mark - entry) = 0.05
-      //   =>  mark = 100 + 0.05
-      const boundaryMark = entryPrice + 0.05;
+      // Exact arithmetic targets a ratio of 0.05. This floating
+      // representation lies a tiny amount below that boundary.
+      const boundaryMark = 100.03999999999999;
 
       const pnl = (boundaryMark - entryPrice) * size;
 

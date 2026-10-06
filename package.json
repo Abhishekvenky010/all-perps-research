@@ -1,10 +1,10 @@
 {
   "name": "all-perps-research",
   "version": "1.0.0",
-  "description": "",
+  "description": "Research prototype for bounded-capacity perpetual AMM economics",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "vitest run"
   },
   "keywords": [],
   "author": "",

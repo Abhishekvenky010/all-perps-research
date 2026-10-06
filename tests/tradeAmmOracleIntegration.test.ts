@@ -7,11 +7,11 @@ import type { PriceObservation } from "../src/oracle/TWAPOracle.js";
 import { PositionManager } from "../src/position/PositionManager.js";
 import { simulateTrade } from "../src/simulation/TradeSimulator.js";
 
-import { recordAmmPriceObservation } from "../src/oracle/AmmPriceService.js";
+import { recordSimulatedProtocolMarkObservation } from "../src/oracle/SimulatedProtocolMarkObservation.js";
 import { updateAmmTwap } from "../src/oracle/TWAPOracle.js";
 
-describe("Trade → AMM → Oracle integration", () => {
-  it("updates AMM price and feeds the resulting price into the TWAP", () => {
+describe("Trade → simulated protocol-mark feedback integration", () => {
+  it("feeds the trade-responsive protocol mark into a simulation TWAP", () => {
     const config: MarketConfig = {
       symbol: "BTC-PERP",
       maxCapacity: 100_000,
@@ -26,14 +26,32 @@ describe("Trade → AMM → Oracle integration", () => {
       symbol: "BTC-PERP",
       indexPrice: 100,
       ammTwapPrice: 100,
-      longOpenInterest: 10_000,
-      shortOpenInterest: 10_000,
+      longOpenInterest: 0,
+      shortOpenInterest: 0,
     };
+    positionManager.openPosition({
+      id: "existing-long",
+      trader: "existing-long",
+      market: state.symbol,
+      side: "LONG",
+      size: 10_000,
+      entryPrice: 100,
+      margin: 1_000,
+    }, state);
+    positionManager.openPosition({
+      id: "existing-short",
+      trader: "existing-short",
+      market: state.symbol,
+      side: "SHORT",
+      size: 10_000,
+      entryPrice: 100,
+      margin: 1_000,
+    }, state);
 
     let observations: PriceObservation[] = [];
 
     // Initial AMM observation.
-    observations = recordAmmPriceObservation(
+    observations = recordSimulatedProtocolMarkObservation(
       observations,
       state,
       config,
@@ -59,7 +77,7 @@ describe("Trade → AMM → Oracle integration", () => {
     state = trade.finalState;
 
     // AMM price should have increased because long OI increased.
-    observations = recordAmmPriceObservation(
+    observations = recordSimulatedProtocolMarkObservation(
       observations,
       state,
       config,

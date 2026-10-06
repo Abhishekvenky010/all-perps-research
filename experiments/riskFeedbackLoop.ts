@@ -32,6 +32,9 @@ import {
 import {
   runLiquidationSweep,
 } from "../src/risk/LiquidationSweep.js";
+import {
+  createLiquidityVault,
+} from "../src/liquidity/LiquidityVault.js";
 
 import {
   getCurrentAmmPrice,
@@ -68,31 +71,35 @@ function runScenario(input: ScenarioInput) {
     symbol: config.symbol,
     indexPrice: input.twap,
     ammTwapPrice: input.twap,
-    longOpenInterest: input.longOpenInterest,
-    shortOpenInterest: input.shortOpenInterest,
+    longOpenInterest: 0,
+    shortOpenInterest: 0,
   };
 
   const positionManager = new PositionManager();
 
-  positionManager.openPosition({
-    id: `${input.name}-long`,
-    trader: "trader-long",
-    market: config.symbol,
-    side: "LONG",
-    size: input.longOpenInterest,
-    entryPrice: input.entryPrice,
-    margin: input.margin,
-  });
+  if (input.longOpenInterest > 0) {
+    positionManager.openPosition({
+      id: `${input.name}-long`,
+      trader: "trader-long",
+      market: config.symbol,
+      side: "LONG",
+      size: input.longOpenInterest,
+      entryPrice: input.entryPrice,
+      margin: input.margin,
+    }, state);
+  }
 
-  positionManager.openPosition({
-    id: `${input.name}-short`,
-    trader: "trader-short",
-    market: config.symbol,
-    side: "SHORT",
-    size: input.shortOpenInterest,
-    entryPrice: input.entryPrice,
-    margin: input.margin,
-  });
+  if (input.shortOpenInterest > 0) {
+    positionManager.openPosition({
+      id: `${input.name}-short`,
+      trader: "trader-short",
+      market: config.symbol,
+      side: "SHORT",
+      size: input.shortOpenInterest,
+      entryPrice: input.entryPrice,
+      margin: input.margin,
+    }, state);
+  }
 
 
   const markPrice = getCurrentAmmPrice(
@@ -115,6 +122,7 @@ function runScenario(input: ScenarioInput) {
     state,
     config,
     positionManager,
+    createLiquidityVault(1_000_000),
   );
 
 

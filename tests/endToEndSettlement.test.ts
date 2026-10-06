@@ -10,14 +10,15 @@ import {
 
 import { PositionManager } from "../src/position/PositionManager.js";
 import { settleAndClosePosition } from "../src/settlement/SettleAndClosePosition.js";
+import { createMarketConfig } from "./helpers/marketConfig.js";
 
 describe("End-to-end economic settlement", () => {
-  it("settles a profitable position against the LP vault and releases OI", () => {
+  it("rejects an unfunded profitable position without changing protocol state", () => {
     const market: MarketState = {
       symbol: "BTC-PERP",
       indexPrice: 100,
-      ammTwapPrice: 100,
-      longOpenInterest: 10_000,
+      ammTwapPrice: 110,
+      longOpenInterest: 0,
       shortOpenInterest: 0,
     };
 
@@ -35,30 +36,32 @@ describe("End-to-end economic settlement", () => {
       margin: 2_000,
     };
 
-    positionManager.openPosition(position);
+    positionManager.openPosition(position, market);
 
-    const result = settleAndClosePosition(
-      position.id,
-      110,
-      market,
-      positionManager,
-      vault,
-    );
+    const before = {
+      market: { ...market },
+      position: positionManager.getPosition(position.id),
+      lifecycle: positionManager.getPositionLifecycle(position.id),
+      vault: { ...vault },
+    };
 
-    // Trader made:
-    // (110 - 100) * 10,000 = 100,000
-    expect(result.pnl).toBe(100_000);
-    expect(result.traderSettlement).toBe(102_000);
+    expect(() =>
+      settleAndClosePosition(
+        position.id,
+        market,
+        createMarketConfig(),
+        positionManager,
+        vault,
+      ),
+    ).toThrow("INSUFFICIENT_LP_BACKING");
 
-    // Position was closed and OI released.
-    expect(market.longOpenInterest).toBe(0);
-    expect(positionManager.getPosition(position.id)).toBeUndefined();
-
-    // LP vault absorbed the trader's profit.
-    expect(vault.traderPnL).toBe(100_000);
-    expect(vault.availableCapital).toBe(-50_000);
-
-    // Accounting identity still holds.
-    expect(getLpEquity(vault)).toBe(-50_000);
+    expect({
+      market: { ...market },
+      position: positionManager.getPosition(position.id),
+      lifecycle: positionManager.getPositionLifecycle(position.id),
+      vault: { ...vault },
+    }).toEqual(before);
+    expect(vault.availableCapital).toBe(50_000);
+    expect(getLpEquity(vault)).toBe(50_000);
   });
 });
